@@ -40,9 +40,13 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, username, password } = req.body;
 
-    const user = await User.findOne({ where: { email } });
+    // Buscar por email o username
+    const user = await User.findOne({ 
+      where: email ? { email } : { username }
+    });
+    
     if (!user) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
@@ -51,6 +55,9 @@ exports.login = async (req, res) => {
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
+
+    // Actualizar último login
+    await user.update({ lastLogin: new Date() });
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN

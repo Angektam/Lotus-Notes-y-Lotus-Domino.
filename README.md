@@ -1,27 +1,228 @@
-# Lotus Notes - Sistema de Colaboración Empresarial
+# 🌟 Sistema Lotus Domino - Gestión de Reportes
 
-Sistema de colaboración empresarial completo inspirado en Lotus Notes, que combina correo electrónico, calendario y plataforma para aplicaciones de negocio personalizadas.
+Sistema completo de gestión de reportes con workflow automatizado inspirado en Lotus Notes/Domino, implementando el flujo Supervisor-Brigadista.
+
+![Estado](https://img.shields.io/badge/Estado-Funcional-success)
+![Versión](https://img.shields.io/badge/Versión-2.0.0-blue)
+![Node](https://img.shields.io/badge/Node-18+-green)
+![React](https://img.shields.io/badge/React-18-blue)
+
+---
 
 ## 📋 Descripción
 
-Lotus Notes es una plataforma integral que permite a los empleados gestionar su comunicación, tareas y colaboración en un solo lugar. Incluye:
+Sistema web que implementa un workflow completo de gestión de reportes entre Supervisores y Brigadistas, con características inspiradas en Lotus Notes/Domino:
 
-- **Correo Electrónico Interno**: Sistema de mensajería entre usuarios
-- **Calendario**: Gestión de eventos, reuniones y recordatorios
-- **Notas**: Documentación personal y compartida
-- **Tareas**: Asignación y seguimiento de actividades
-- **Aplicaciones de Negocio**: Plataforma extensible para módulos personalizados
-
-## 🚀 Características
-
-- ✅ Autenticación segura con JWT
-- ✅ Gestión de usuarios con roles
-- ✅ Sistema de mensajería interna
-- ✅ Calendario de eventos
-- ✅ Gestión de notas públicas y privadas
-- ✅ Sistema de tareas con asignación
-- ✅ Interfaz profesional y responsive
+- ✅ Workflow automatizado con estados controlados
+- ✅ Notificaciones automáticas en tiempo real
+- ✅ Agentes programados (recordatorios y alertas)
+- ✅ Control de acceso granular (ACL)
+- ✅ Versionado y auditoría completa
+- ✅ Carga de archivos adjuntos
 - ✅ API REST completa
+
+---
+
+## 🚀 Inicio Rápido
+
+### Requisitos Previos
+- Node.js 18+
+- MySQL 8.0+
+- npm o yarn
+
+### 1. Clonar el Repositorio
+```bash
+git clone https://github.com/Angektam/Lotus-Notes-y-Lotus-Domino..git
+cd Lotus-Notes-y-Lotus-Domino.
+```
+
+### 2. Configurar Backend
+```bash
+cd lotus-notes-collab
+npm install
+cp .env.example .env
+# Editar .env con tus credenciales de MySQL
+npm run setup
+npm run create-users
+npm run dev
+```
+
+### 3. Configurar Frontend
+```bash
+cd ../lotus-notes-frontend
+npm install
+npm run dev
+```
+
+### 4. Acceder al Sistema
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:4000
+
+---
+
+## 👥 Usuarios de Prueba
+
+| Usuario | Password | Rol |
+|---------|----------|-----|
+| supervisor1 | supervisor123 | Supervisor |
+| brigadista1 | brigadista123 | Brigadista |
+| brigadista2 | brigadista123 | Brigadista |
+| admin | admin123 | Admin |
+
+---
+
+## 🔄 Workflow Implementado
+
+```
+ASIGNADO → EN_ELABORACION → ENVIADO → EN_REVISION
+                                           ↓
+                                    ┌──────┴──────┐
+                                    ↓             ↓
+                                OBSERVADO     APROBADO
+                                    ↓
+                            (vuelve a EN_ELABORACION)
+```
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+├── lotus-notes-collab/          # Backend (Node.js + Express)
+│   ├── src/
+│   │   ├── agents/              # Agentes automáticos (cron)
+│   │   ├── controllers/         # Controladores
+│   │   ├── models/              # Modelos Sequelize
+│   │   ├── routes/              # Rutas API
+│   │   └── middleware/          # Middlewares
+│   ├── uploads/                 # Archivos subidos
+│   └── package.json
+│
+├── lotus-notes-frontend/        # Frontend (React + Vite)
+│   ├── src/
+│   │   ├── api/                 # Configuración Axios
+│   │   ├── components/          # Componentes React
+│   │   └── pages/               # Páginas
+│   └── package.json
+│
+└── README.md
+```
+
+---
+
+## 🎯 Características Principales
+
+### Backend
+- **API REST**: 22+ endpoints
+- **Autenticación**: JWT
+- **Base de Datos**: MySQL con Sequelize ORM
+- **Workflow**: Estados y transiciones controladas
+- **Notificaciones**: Sistema completo de notificaciones
+- **Agentes**: Recordatorios y alertas automáticas
+- **Archivos**: Carga de evidencias (5MB max)
+- **Auditoría**: Registro completo de acciones
+
+### Frontend
+- **Framework**: React 18 + Vite
+- **Routing**: React Router
+- **HTTP Client**: Axios
+- **UI**: Diseño responsive y moderno
+- **Autenticación**: Login con username o email
+
+---
+
+## 📊 API Endpoints
+
+### Autenticación
+- `POST /api/auth/register` - Registrar usuario
+- `POST /api/auth/login` - Login
+- `GET /api/auth/me` - Usuario actual
+
+### Supervisor
+- `POST /api/supervisor/brigadistas` - Registrar brigadista
+- `GET /api/supervisor/brigadistas` - Listar brigadistas
+- `POST /api/supervisor/reports/assign` - Asignar reporte
+- `GET /api/supervisor/reports/pending` - Reportes pendientes
+- `PUT /api/supervisor/reports/:id/review` - Revisar reporte
+- `GET /api/supervisor/dashboard/stats` - Estadísticas
+
+### Brigadista
+- `GET /api/brigadista/reports` - Mis reportes
+- `PUT /api/brigadista/reports/:id` - Editar reporte
+- `POST /api/brigadista/reports/:id/submit` - Enviar
+- `POST /api/brigadista/reports/:id/attachments` - Subir archivo
+- `GET /api/brigadista/dashboard/stats` - Mis estadísticas
+
+### Notificaciones
+- `GET /api/notifications` - Listar notificaciones
+- `PUT /api/notifications/:id/read` - Marcar leída
+- `GET /api/notifications/unread-count` - Contador
+
+---
+
+## 🧪 Pruebas
+
+### Test Automático del Workflow
+```powershell
+cd lotus-notes-collab
+.\test-simple.ps1
+```
+
+Este script ejecuta un flujo completo:
+1. Login Supervisor
+2. Asignar reporte
+3. Login Brigadista
+4. Elaborar y enviar reporte
+5. Supervisor aprueba
+
+---
+
+## 🤖 Agentes Automáticos
+
+Los agentes se ejecutan automáticamente:
+
+- **Recordatorios**: Diario 8:00 AM
+  - Notifica reportes que vencen en 3 días
+
+- **Alertas**: Diario 9:00 AM
+  - Notifica reportes vencidos
+
+- **Modo Desarrollo**: Cada hora
+
+---
+
+## 🔧 Configuración
+
+### Variables de Entorno (.env)
+
+```env
+# Base de datos
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=lotus_domino_db
+DB_USER=root
+DB_PASSWORD=tu_password
+
+# JWT
+JWT_SECRET=tu_secret_key
+JWT_EXPIRES_IN=24h
+
+# Server
+PORT=4000
+NODE_ENV=development
+```
+
+---
+
+## 📚 Documentación
+
+- [Guía Rápida](lotus-notes-collab/GUIA_RAPIDA.md)
+- [Documentación Completa](lotus-notes-collab/README_LOTUS_DOMINO.md)
+- [Propuesta Técnica](PROPUESTA_LOTUS_DOMINO_BRIGADISTAS.md)
+- [Credenciales de Acceso](CREDENCIALES_LOGIN.md)
+- [Estado del Sistema](lotus-notes-collab/SISTEMA_FUNCIONANDO.md)
+
+---
 
 ## 🛠️ Tecnologías
 
@@ -29,195 +230,72 @@ Lotus Notes es una plataforma integral que permite a los empleados gestionar su 
 - Node.js + Express.js
 - MySQL + Sequelize ORM
 - JWT Authentication
-- Bcrypt para encriptación
+- Bcrypt
+- Node-cron
+- Multer
 
 ### Frontend
 - React 18
 - Vite
 - React Router
 - Axios
+- CSS3
 
-## 📦 Estructura del Proyecto
+---
 
-```
-Lotus-Notes/
-├── lotus-notes-collab/          # Backend API
-│   ├── src/
-│   │   ├── config/              # Configuración
-│   │   ├── models/              # Modelos de datos
-│   │   ├── controllers/         # Lógica de negocio
-│   │   ├── routes/              # Rutas API
-│   │   ├── middleware/          # Middleware
-│   │   └── server.js            # Servidor principal
-│   ├── .env                     # Variables de entorno
-│   └── package.json
-│
-├── lotus-notes-frontend/        # Frontend React
-│   ├── src/
-│   │   ├── api/                 # Configuración API
-│   │   ├── components/          # Componentes
-│   │   ├── pages/               # Páginas
-│   │   └── App.jsx
-│   └── package.json
-│
-├── backend-api-backup/          # Backup del proyecto original
-├── PROPUESTA_LOTUS_NOTES.md     # Propuesta técnica
-└── README.md                    # Este archivo
-```
+## 🔐 Seguridad
 
-## 🔧 Instalación
-
-### Requisitos Previos
-- Node.js 16 o superior
-- MySQL 8.0 o superior
-- Git
-
-### 1. Clonar el Repositorio
-
-```bash
-git clone https://github.com/Angektam/Lotus-Notes.git
-cd Lotus-Notes
-```
-
-### 2. Configurar Backend
-
-```bash
-cd lotus-notes-collab
-npm install
-
-# Configurar variables de entorno
-cp .env.example .env
-# Editar .env con tus credenciales de MySQL
-```
-
-### 3. Crear Base de Datos
-
-```sql
-CREATE DATABASE lotus_notes_db;
-```
-
-### 4. Iniciar Backend
-
-```bash
-npm run dev  # Modo desarrollo (puerto 4000)
-# o
-npm start    # Modo producción
-```
-
-### 5. Configurar Frontend
-
-```bash
-cd ../lotus-notes-frontend
-npm install
-```
-
-### 6. Iniciar Frontend
-
-```bash
-npm run dev  # Se abrirá en http://localhost:3000
-```
-
-## 📚 Uso
-
-### Crear Usuario
-
-1. Accede a `http://localhost:3000`
-2. Haz clic en "Regístrate"
-3. Completa el formulario de registro
-4. Inicia sesión con tus credenciales
-
-### Usuarios de Prueba
-
-Puedes crear usuarios de prueba con PowerShell:
-
-```powershell
-Invoke-RestMethod -Uri "http://localhost:4000/api/auth/register" -Method POST -ContentType "application/json" -Body '{"username":"admin","email":"admin@lotus.com","password":"123456","fullName":"Administrador","department":"IT"}'
-```
-
-**Credenciales:**
-- Email: admin@lotus.com
-- Contraseña: 123456
-
-## 🔌 API Endpoints
-
-### Autenticación
-- `POST /api/auth/register` - Registrar usuario
-- `POST /api/auth/login` - Iniciar sesión
-
-### Notas
-- `GET /api/notes` - Listar mis notas
-- `POST /api/notes` - Crear nota
-- `PUT /api/notes/:id` - Actualizar nota
-- `DELETE /api/notes/:id` - Eliminar nota
-
-### Tareas
-- `GET /api/tasks/my-tasks` - Mis tareas
-- `POST /api/tasks` - Crear tarea
-- `PUT /api/tasks/:id` - Actualizar tarea
-- `DELETE /api/tasks/:id` - Eliminar tarea
-
-### Calendario
-- `GET /api/calendar` - Listar eventos
-- `POST /api/calendar` - Crear evento
-- `PUT /api/calendar/:id` - Actualizar evento
-- `DELETE /api/calendar/:id` - Eliminar evento
-
-### Mensajes
-- `GET /api/messages/inbox` - Bandeja de entrada
-- `GET /api/messages/sent` - Mensajes enviados
-- `POST /api/messages` - Enviar mensaje
-- `PUT /api/messages/:id/read` - Marcar como leído
-
-## 🧪 Pruebas
-
-Ejecuta el script de pruebas automatizado:
-
-```powershell
-cd lotus-notes-collab
-.\test-api.ps1
-```
-
-## 🔒 Seguridad
-
-- Autenticación JWT con tokens de 24 horas
-- Contraseñas encriptadas con bcrypt (10 rounds)
-- Validación de datos en todas las entradas
+- Autenticación JWT
+- Contraseñas encriptadas (bcrypt)
+- Control de acceso por rol
+- Validación de inputs
 - CORS configurado
-- Variables de entorno para credenciales sensibles
+- Archivos validados (tipo y tamaño)
+
+---
 
 ## 📈 Roadmap
 
-- [ ] Notificaciones en tiempo real (WebSockets)
-- [ ] Adjuntar archivos a notas y mensajes
-- [ ] Búsqueda avanzada
-- [ ] Exportación de datos (PDF, Excel)
+- [ ] Notificaciones en tiempo real (Socket.io)
+- [ ] Generación de PDF de reportes
+- [ ] Dashboard con gráficas
 - [ ] Aplicación móvil
-- [ ] Integración con email externo
-- [ ] Dashboard de analíticas
+- [ ] Firma digital
+- [ ] Integración con email
+
+---
 
 ## 🤝 Contribuir
 
 Las contribuciones son bienvenidas. Por favor:
 
 1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+2. Crea una rama (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add AmazingFeature'`)
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
-## 📄 Licencia
+---
 
-Este proyecto es de código abierto y está disponible bajo la licencia MIT.
+## 📝 Licencia
 
-## 👤 Autor
+Este proyecto está bajo la Licencia MIT.
+
+---
+
+## 👨‍💻 Autor
 
 **Angektam**
 - GitHub: [@Angektam](https://github.com/Angektam)
 
-## 📞 Soporte
+---
 
-Si tienes alguna pregunta o problema, por favor abre un issue en GitHub.
+## 🙏 Agradecimientos
+
+Inspirado en Lotus Notes/Domino de IBM, adaptado a tecnologías web modernas.
 
 ---
 
-⭐ Si este proyecto te fue útil, considera darle una estrella en GitHub!
+**Fecha:** Febrero 2026
+**Versión:** 2.0.0
+**Estado:** ✅ Funcional y Probado

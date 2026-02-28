@@ -12,6 +12,7 @@ function Login({ onLogin }) {
     department: ''
   })
   const [error, setError] = useState('')
+  const [loginField, setLoginField] = useState('') // Campo único para username o email
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -23,7 +24,18 @@ function Login({ onLogin }) {
 
     try {
       const endpoint = isRegister ? '/auth/register' : '/auth/login'
-      const data = isRegister ? formData : { email: formData.email, password: formData.password }
+      
+      let data
+      if (isRegister) {
+        data = formData
+      } else {
+        // Determinar si es email o username
+        const isEmail = loginField.includes('@')
+        data = {
+          [isEmail ? 'email' : 'username']: loginField,
+          password: formData.password
+        }
+      }
       
       const response = await api.post(endpoint, data)
       
@@ -38,7 +50,7 @@ function Login({ onLogin }) {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1>Lotus Notes</h1>
+        <h1>📋 Servicio Social</h1>
         <h2>{isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}</h2>
         
         {error && <div className="error-message">{error}</div>}
@@ -68,17 +80,27 @@ function Login({ onLogin }) {
                 value={formData.department}
                 onChange={handleChange}
               />
+              <input
+                type="email"
+                name="email"
+                placeholder="Correo Electrónico"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
             </>
           )}
           
-          <input
-            type="email"
-            name="email"
-            placeholder="Correo Electrónico"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
+          {!isRegister && (
+            <input
+              type="text"
+              name="loginField"
+              placeholder="Usuario o Correo Electrónico"
+              value={loginField}
+              onChange={(e) => setLoginField(e.target.value)}
+              required
+            />
+          )}
           
           <input
             type="password"

@@ -34,12 +34,36 @@ const User = sequelize.define('User', {
     allowNull: true
   },
   role: {
-    type: DataTypes.ENUM('admin', 'user', 'manager'),
-    defaultValue: 'user'
+    type: DataTypes.ENUM('admin', 'student', 'supervisor', 'brigadista'),
+    defaultValue: 'student'
   },
   status: {
     type: DataTypes.ENUM('active', 'inactive', 'away'),
     defaultValue: 'active'
+  },
+  // Perfil de Brigadista
+  brigadistaProfile: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: null
+    // { zone, team, supervisorId, startDate }
+  },
+  // Perfil de Supervisor
+  supervisorProfile: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: null
+    // { managedZones, department }
+  },
+  // Configuración de notificaciones
+  notificationSettings: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: { email: true, inApp: true, sms: false }
+  },
+  lastLogin: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   timestamps: true,
