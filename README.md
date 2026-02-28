@@ -1,6 +1,6 @@
 # 🌟 Sistema Lotus Domino - Gestión de Reportes
 
-Sistema completo de gestión de reportes con workflow automatizado inspirado en Lotus Notes/Domino, implementando el flujo Supervisor-Brigadista.
+Sistema completo de gestión de reportes con workflow automatizado basado en **Lotus Notes/Domino**, implementando el flujo Supervisor-Brigadista con arquitectura documental y agentes automáticos.
 
 ![Estado](https://img.shields.io/badge/Estado-Funcional-success)
 ![Versión](https://img.shields.io/badge/Versión-2.0.0-blue)
@@ -11,15 +11,75 @@ Sistema completo de gestión de reportes con workflow automatizado inspirado en 
 
 ## 📋 Descripción
 
-Sistema web que implementa un workflow completo de gestión de reportes entre Supervisores y Brigadistas, con características inspiradas en Lotus Notes/Domino:
+Sistema web que **implementa los conceptos fundamentales de Lotus Notes/Domino** en una arquitectura moderna:
 
-- ✅ Workflow automatizado con estados controlados
-- ✅ Notificaciones automáticas en tiempo real
-- ✅ Agentes programados (recordatorios y alertas)
-- ✅ Control de acceso granular (ACL)
-- ✅ Versionado y auditoría completa
-- ✅ Carga de archivos adjuntos
-- ✅ API REST completa
+### Conceptos Lotus Notes/Domino Implementados:
+
+**🗄️ Base de Datos Documental (NSF)**
+- Cada reporte es un documento con campos estructurados y JSON
+- Metadatos completos: autor, fechas, versión, estado
+- Almacenamiento en MySQL con estructura documental
+
+**📊 Vistas (Views)**
+- Vista Supervisor: Reportes pendientes de revisión
+- Vista Brigadista: Mis reportes asignados
+- Vistas filtradas por estado, fecha, usuario
+- Ordenamiento y búsqueda avanzada
+
+**🔄 Motor de Workflow**
+- Estados controlados con transiciones validadas
+- Routing automático según rol y acción
+- Historial completo de cambios (workflowHistory)
+- Validación de permisos en cada transición
+
+**🔐 Control de Acceso (ACL)**
+- Permisos granulares por rol y documento
+- Supervisores: Crear, Asignar, Revisar, Aprobar/Rechazar
+- Brigadistas: Leer, Editar (propios), Enviar
+- Auditoría completa de accesos
+
+**🤖 Agentes Automáticos (Agents)**
+- Agente de Recordatorios (diario 8:00 AM)
+- Agente de Alertas de Vencimiento (diario 9:00 AM)
+- Agente de Estadísticas (semanal)
+- Programación con node-cron
+
+**📝 Formularios Dinámicos (Forms)**
+- Formularios estructurados para reportes
+- Validación de campos
+- Campos calculados automáticamente
+
+**🔔 Notificaciones Automáticas**
+- Notificaciones en cada cambio de estado
+- Sistema de prioridades (LOW, MEDIUM, HIGH)
+- Almacenamiento persistente
+
+**📚 Versionado de Documentos**
+- Control de versiones automático
+- Referencia a versiones anteriores
+- Historial de cambios completo
+
+**🔍 Auditoría (Audit Trail)**
+- Registro de todas las acciones
+- Usuario, fecha, acción, detalles
+- Trazabilidad completa
+
+---
+
+## 🎯 Comparación: Lotus Notes/Domino vs Este Sistema
+
+| Concepto Lotus Notes/Domino | Implementación en el Sistema |
+|------------------------------|------------------------------|
+| **NSF Database** | MySQL con estructura documental (JSON) |
+| **Documents** | Modelo Report con campos estructurados |
+| **Views** | Queries con filtros, ordenamiento y búsqueda |
+| **Forms** | Componentes React + API REST |
+| **Workflow Engine** | Estados + Transiciones controladas |
+| **ACL (Access Control)** | Middleware de autenticación/autorización |
+| **Agents** | Node-cron + funciones programadas |
+| **Replication** | No implementado (single server) |
+| **Email Notifications** | Estructura lista (Nodemailer) |
+| **Real-time Updates** | Preparado para Socket.io |
 
 ---
 
@@ -292,7 +352,16 @@ Este proyecto está bajo la Licencia MIT.
 
 ## 🙏 Agradecimientos
 
-Inspirado en Lotus Notes/Domino de IBM, adaptado a tecnologías web modernas.
+Este sistema **implementa los conceptos fundamentales de Lotus Notes/Domino** de IBM en tecnologías web modernas (Node.js, React, MySQL), demostrando que los principios de arquitectura documental, workflow automatizado y agentes programados siguen siendo relevantes y poderosos en aplicaciones modernas.
+
+**Lotus Notes/Domino** fue pionero en:
+- Bases de datos documentales
+- Workflow automatizado
+- Colaboración empresarial
+- Agentes inteligentes
+- Replicación de datos
+
+Este proyecto adapta esos conceptos probados a un stack tecnológico actual y accesible.
 
 ---
 
