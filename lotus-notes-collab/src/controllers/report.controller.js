@@ -64,7 +64,7 @@ exports.getReports = async (req, res) => {
       include: [{
         model: User,
         as: 'student',
-        attributes: ['id', 'name', 'email']
+        attributes: ['id', 'fullName', 'email']
       }]
     });
 
@@ -93,7 +93,7 @@ exports.getReportById = async (req, res) => {
       include: [{
         model: User,
         as: 'student',
-        attributes: ['id', 'name', 'email']
+        attributes: ['id', 'fullName', 'email']
       }]
     });
 

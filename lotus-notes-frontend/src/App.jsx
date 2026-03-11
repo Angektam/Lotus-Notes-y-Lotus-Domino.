@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { SocketProvider } from './context/SocketContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminReports from './pages/AdminReports'
+import AdminStudents from './pages/AdminStudents'
+import SupervisorDashboard from './pages/SupervisorDashboard'
+import SupervisorBrigadistas from './pages/SupervisorBrigadistas'
+import SupervisorAssignReport from './pages/SupervisorAssignReport'
+import SupervisorPendingReports from './pages/SupervisorPendingReports'
+import BrigadistaDashboard from './pages/BrigadistaDashboard'
+import BrigadistaReports from './pages/BrigadistaReports'
 import Notes from './pages/Notes'
 import Tasks from './pages/Tasks'
 import Calendar from './pages/Calendar'
@@ -35,18 +43,16 @@ function App() {
     setUserRole(null)
   }
 
-  // Componente para proteger rutas de admin
-  const AdminRoute = ({ children }) => {
+  const RoleRoute = ({ allow, children }) => {
     if (!isAuthenticated) return <Navigate to="/login" />
-    if (userRole !== 'admin' && userRole !== 'supervisor') {
-      return <Navigate to="/" />
-    }
+    if (!allow.includes(userRole)) return <Navigate to="/" />
     return children
   }
 
   return (
-    <Router>
-      <Routes>
+    <SocketProvider>
+      <Router>
+        <Routes>
         <Route path="/login" element={
           isAuthenticated ? <Navigate to="/" /> : <Login onLogin={handleLogin} />
         } />
@@ -56,14 +62,37 @@ function App() {
         }>
           {/* Rutas según el rol */}
           <Route index element={
-            userRole === 'admin' || userRole === 'supervisor' 
-              ? <AdminDashboard /> 
-              : <Dashboard />
+            userRole === 'admin'
+              ? <AdminDashboard />
+              : userRole === 'supervisor'
+                ? <SupervisorDashboard />
+                : userRole === 'brigadista'
+                  ? <BrigadistaDashboard />
+                  : <Dashboard />
           } />
           
           {/* Rutas de administrador */}
           <Route path="admin/reports" element={
-            <AdminRoute><AdminReports /></AdminRoute>
+            <RoleRoute allow={['admin']}><AdminReports /></RoleRoute>
+          } />
+          <Route path="admin/students" element={
+            <RoleRoute allow={['admin', 'supervisor']}><AdminStudents /></RoleRoute>
+          } />
+
+          {/* Rutas de supervisor */}
+          <Route path="supervisor/brigadistas" element={
+            <RoleRoute allow={['supervisor', 'admin']}><SupervisorBrigadistas /></RoleRoute>
+          } />
+          <Route path="supervisor/assign" element={
+            <RoleRoute allow={['supervisor', 'admin']}><SupervisorAssignReport /></RoleRoute>
+          } />
+          <Route path="supervisor/pending" element={
+            <RoleRoute allow={['supervisor', 'admin']}><SupervisorPendingReports /></RoleRoute>
+          } />
+          
+          {/* Rutas de brigadista */}
+          <Route path="brigadista/reports" element={
+            <RoleRoute allow={['brigadista', 'admin']}><BrigadistaReports /></RoleRoute>
           } />
           
           {/* Rutas de estudiante */}
@@ -73,8 +102,9 @@ function App() {
           <Route path="calendar" element={<Calendar />} />
           <Route path="messages" element={<Messages />} />
         </Route>
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </SocketProvider>
   )
 }
 

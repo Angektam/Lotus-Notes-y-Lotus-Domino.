@@ -19,31 +19,65 @@ function Login({ onLogin }) {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError('');
+
+    // Validaciones
+    if (isRegister) {
+      if (!formData.username.trim() || formData.username.length < 3) {
+        setError('El usuario debe tener al menos 3 caracteres');
+        return;
+      }
+      if (!formData.email.trim() || !formData.email.includes('@')) {
+        setError('Debes proporcionar un correo electrónico válido');
+        return;
+      }
+      if (!formData.password || formData.password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+    } else {
+      if (!loginField.trim()) {
+        setError('Debes ingresar tu usuario o correo electrónico');
+        return;
+      }
+      if (!formData.password) {
+        setError('Debes ingresar tu contraseña');
+        return;
+      }
+    }
 
     try {
-      const endpoint = isRegister ? '/auth/register' : '/auth/login'
+      const endpoint = isRegister ? '/auth/register' : '/auth/login';
       
-      let data
+      let data;
       if (isRegister) {
-        data = formData
+        data = formData;
       } else {
         // Determinar si es email o username
-        const isEmail = loginField.includes('@')
+        const isEmail = loginField.includes('@');
         data = {
           [isEmail ? 'email' : 'username']: loginField,
           password: formData.password
-        }
+        };
       }
       
-      const response = await api.post(endpoint, data)
+      const response = await api.post(endpoint, data);
       
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user))
-      onLogin()
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      onLogin();
     } catch (err) {
-      setError(err.response?.data?.error || 'Error de autenticación')
+      console.error('Auth error:', err);
+      if (err.response?.status === 401) {
+        setError('Usuario o contraseña incorrectos');
+      } else if (err.response?.status === 409) {
+        setError('El usuario o correo ya está registrado');
+      } else if (err.code === 'ERR_NETWORK') {
+        setError('No se puede conectar al servidor. Verifica que el backend esté corriendo en http://localhost:4000');
+      } else {
+        setError(err.response?.data?.error || err.response?.data?.message || 'Error de autenticación');
+      }
     }
   }
 

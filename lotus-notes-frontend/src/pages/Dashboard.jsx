@@ -21,21 +21,26 @@ function Dashboard() {
   }, [])
 
   const loadStats = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('No hay token de autenticación');
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token')
       const [reports, notes, tasks] = await Promise.all([
         api.get('/reports', { headers: { Authorization: `Bearer ${token}` } }),
         api.get('/notes'),
         api.get('/tasks/my-tasks')
-      ])
+      ]);
 
-      const reportsData = reports.data.data || []
+      const reportsData = reports.data.data || [];
       
       // Calcular estadísticas de informes
-      const totalHours = reportsData.reduce((sum, r) => sum + (r.totalHours || 0), 0)
-      const drafts = reportsData.filter(r => r.status === 'draft').length
-      const submitted = reportsData.filter(r => r.status === 'submitted').length
-      const approved = reportsData.filter(r => r.status === 'approved').length
+      const totalHours = reportsData.reduce((sum, r) => sum + (r.totalHours || 0), 0);
+      const drafts = reportsData.filter(r => r.status === 'draft').length;
+      const submitted = reportsData.filter(r => r.status === 'submitted').length;
+      const approved = reportsData.filter(r => r.status === 'approved').length;
 
       setStats({
         reports: reportsData.length,
@@ -45,12 +50,19 @@ function Dashboard() {
         approved,
         notes: notes.data.notes?.length || 0,
         tasks: tasks.data.tasks?.length || 0
-      })
+      });
 
       // Obtener los 3 informes más recientes
-      setRecentReports(reportsData.slice(0, 3))
+      setRecentReports(reportsData.slice(0, 3));
     } catch (error) {
-      console.error('Error loading stats:', error)
+      if (error.response?.status === 401) {
+        console.error('Sesión expirada');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        console.error('Error loading stats:', error);
+      }
     }
   }
 

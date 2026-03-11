@@ -1,0 +1,169 @@
+.advanced-search {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.search-main {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 15px;
+  transition: border-color 0.3s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.btn-search, .btn-toggle-filters {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-search {
+  background: #3498db;
+  color: white;
+}
+
+.btn-search:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.btn-search:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+}
+
+.btn-toggle-filters {
+  background: #ecf0f1;
+  color: #2c3e50;
+}
+
+.btn-toggle-filters:hover {
+  background: #d5dbdb;
+}
+
+.search-filters {
+  padding-top: 15px;
+  border-top: 1px solid #ecf0f1;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.filter-group select,
+.filter-group input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-apply, .btn-reset {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-apply {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-apply:hover:not(:disabled) {
+  background: #229954;
+}
+
+.btn-apply:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+}
+
+.btn-reset {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-reset:hover {
+  background: #c0392b;
+}
+
+@media (max-width: 768px) {
+  .search-main {
+    flex-direction: column;
+  }
+
+  .search-input,
+  .btn-search,
+  .btn-toggle-filters {
+    width: 100%;
+  }
+
+  .filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+  }
+
+  .btn-apply,
+  .btn-reset {
+    width: 100%;
+  }
+}

@@ -17,23 +17,66 @@ function Notes() {
   }, [])
 
   const loadNotes = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('No hay token de autenticación');
+      return;
+    }
+
     try {
-      const response = await api.get('/notes')
-      setNotes(response.data.notes)
+      const response = await api.get('/notes');
+      setNotes(response.data.notes || []);
     } catch (error) {
-      console.error('Error loading notes:', error)
+      if (error.response?.status === 401) {
+        console.error('Sesión expirada');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        console.error('Error loading notes:', error);
+      }
     }
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
+
+    // Validaciones
+    if (!formData.title.trim()) {
+      alert('El título es obligatorio');
+      return;
+    }
+
+    if (!formData.content.trim()) {
+      alert('El contenido es obligatorio');
+      return;
+    }
+
+    if (formData.title.length > 200) {
+      alert('El título no puede exceder 200 caracteres');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      window.location.href = '/login';
+      return;
+    }
+
     try {
-      await api.post('/notes', formData)
-      setFormData({ title: '', content: '', category: '', priority: 'medium', isPublic: false })
-      setShowForm(false)
-      loadNotes()
+      await api.post('/notes', formData);
+      setFormData({ title: '', content: '', category: '', priority: 'medium', isPublic: false });
+      setShowForm(false);
+      loadNotes();
     } catch (error) {
-      console.error('Error creating note:', error)
+      console.error('Error creating note:', error);
+      if (error.response?.status === 401) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        window.location.href = '/login';
+      } else {
+        alert(error.response?.data?.message || 'Error al crear la nota');
+      }
     }
   }
 

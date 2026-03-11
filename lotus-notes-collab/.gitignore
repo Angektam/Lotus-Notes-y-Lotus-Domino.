@@ -3,3 +3,7 @@ node_modules/
 uploads/
 logs/
 *.log
+database.sqlite
+database.sqlite-journal
+*.db
+*.db-journal

@@ -17,22 +17,43 @@ function AdminDashboard() {
     recentReports: []
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     loadStatistics();
-  }, []);
+  }, [selectedMonth, selectedYear]);
 
   const loadStatistics = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await api.get('/admin/statistics', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStats(response.data.data);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Debes iniciar sesión para ver las estadísticas.');
       setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const params = {};
+      if (selectedMonth) params.month = selectedMonth;
+      if (selectedYear) params.year = selectedYear;
+
+      const response = await api.get('/admin/statistics', { params });
+      setStats(response.data.data);
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
+      if (error.response?.status === 401) {
+        setError('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setTimeout(() => window.location.href = '/login', 2000);
+      } else {
+        setError('No se pudieron cargar las estadísticas. Verifica el servidor.');
+      }
+    } finally {
       setLoading(false);
     }
   };
@@ -61,9 +82,69 @@ function AdminDashboard() {
       <div className="dashboard-header">
         <div>
           <h1>🎯 Panel de Administración</h1>
-          <p className="subtitle">Bienvenido, {user.fullName || user.username}</p>
+          <p className="subtitle">
+            Bienvenido, {user.fullName || user.username}
+            {selectedMonth || selectedYear ? ' · Filtrando por periodo' : ''}
+          </p>
+        </div>
+        <div className="header-actions">
+          <div className="period-filters">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            >
+              <option value="">Todos los meses</option>
+              <option value="Enero">Enero</option>
+              <option value="Febrero">Febrero</option>
+              <option value="Marzo">Marzo</option>
+              <option value="Abril">Abril</option>
+              <option value="Mayo">Mayo</option>
+              <option value="Junio">Junio</option>
+              <option value="Julio">Julio</option>
+              <option value="Agosto">Agosto</option>
+              <option value="Septiembre">Septiembre</option>
+              <option value="Octubre">Octubre</option>
+              <option value="Noviembre">Noviembre</option>
+              <option value="Diciembre">Diciembre</option>
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+            >
+              <option value="">Todos los años</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+            </select>
+            {(selectedMonth || selectedYear) && (
+              <button
+                type="button"
+                className="btn btn-outline btn-xs"
+                onClick={() => {
+                  setSelectedMonth('');
+                  setSelectedYear('');
+                }}
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+          <Link to="/admin/reports" className="btn btn-outline">📋 Informes</Link>
+          <Link to="/admin/students" className="btn btn-primary">👥 Estudiantes</Link>
         </div>
       </div>
+
+      {error && (
+        <div className="card error-card">
+          <div className="error-row">
+            <div>
+              <h3>Ocurrió un problema</h3>
+              <p className="error-text">{error}</p>
+            </div>
+            <button className="btn btn-outline" onClick={loadStatistics}>Reintentar</button>
+          </div>
+        </div>
+      )}
 
       {/* Estadísticas principales */}
       <div className="stats-grid">

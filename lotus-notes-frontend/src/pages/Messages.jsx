@@ -17,24 +17,73 @@ function Messages() {
   }, [view])
 
   const loadMessages = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('No hay token de autenticación');
+      return;
+    }
+
     try {
-      const endpoint = view === 'inbox' ? '/messages/inbox' : '/messages/sent'
-      const response = await api.get(endpoint)
-      setMessages(response.data.messages)
+      const endpoint = view === 'inbox' ? '/messages/inbox' : '/messages/sent';
+      const response = await api.get(endpoint);
+      setMessages(response.data.messages || []);
     } catch (error) {
-      console.error('Error loading messages:', error)
+      if (error.response?.status === 401) {
+        console.error('Sesión expirada');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        console.error('Error loading messages:', error);
+      }
     }
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
+
+    // Validaciones
+    if (!formData.receiverId || formData.receiverId <= 0) {
+      alert('Debes especificar un destinatario válido');
+      return;
+    }
+
+    if (!formData.subject.trim()) {
+      alert('El asunto es obligatorio');
+      return;
+    }
+
+    if (!formData.body.trim()) {
+      alert('El mensaje no puede estar vacío');
+      return;
+    }
+
+    if (formData.subject.length > 200) {
+      alert('El asunto no puede exceder 200 caracteres');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      window.location.href = '/login';
+      return;
+    }
+
     try {
-      await api.post('/messages', formData)
-      setFormData({ receiverId: '', subject: '', body: '', priority: 'normal' })
-      setShowForm(false)
-      if (view === 'sent') loadMessages()
+      await api.post('/messages', formData);
+      setFormData({ receiverId: '', subject: '', body: '', priority: 'normal' });
+      setShowForm(false);
+      if (view === 'sent') loadMessages();
+      alert('Mensaje enviado exitosamente');
     } catch (error) {
-      console.error('Error sending message:', error)
+      console.error('Error sending message:', error);
+      if (error.response?.status === 401) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        window.location.href = '/login';
+      } else {
+        alert(error.response?.data?.message || 'Error al enviar el mensaje');
+      }
     }
   }
 

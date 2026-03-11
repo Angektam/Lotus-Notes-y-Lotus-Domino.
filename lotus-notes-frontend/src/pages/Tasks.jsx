@@ -17,24 +17,68 @@ function Tasks() {
   }, [])
 
   const loadTasks = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('No hay token de autenticación');
+      return;
+    }
+
     try {
-      const response = await api.get('/tasks/my-tasks')
-      setTasks(response.data.tasks)
+      const response = await api.get('/tasks/my-tasks');
+      setTasks(response.data.tasks || []);
     } catch (error) {
-      console.error('Error loading tasks:', error)
+      if (error.response?.status === 401) {
+        console.error('Sesión expirada');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        console.error('Error loading tasks:', error);
+      }
     }
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
+
+    // Validaciones
+    if (!formData.title.trim()) {
+      alert('El título es obligatorio');
+      return;
+    }
+
+    if (formData.dueDate && new Date(formData.dueDate) < new Date()) {
+      if (!confirm('La fecha de vencimiento es anterior a hoy. ¿Deseas continuar?')) {
+        return;
+      }
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      window.location.href = '/login';
+      return;
+    }
+
     try {
-      const user = JSON.parse(localStorage.getItem('user'))
-      await api.post('/tasks', { ...formData, assignedTo: user.id })
-      setFormData({ title: '', description: '', priority: 'medium', dueDate: '', assignedTo: '' })
-      setShowForm(false)
-      loadTasks()
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (!user.id) {
+        alert('Error: Usuario no válido');
+        return;
+      }
+
+      await api.post('/tasks', { ...formData, assignedTo: user.id });
+      setFormData({ title: '', description: '', priority: 'medium', dueDate: '', assignedTo: '' });
+      setShowForm(false);
+      loadTasks();
     } catch (error) {
-      console.error('Error creating task:', error)
+      console.error('Error creating task:', error);
+      if (error.response?.status === 401) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        window.location.href = '/login';
+      } else {
+        alert(error.response?.data?.message || 'Error al crear la tarea');
+      }
     }
   }
 

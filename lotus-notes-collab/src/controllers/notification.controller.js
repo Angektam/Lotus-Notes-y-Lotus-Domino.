@@ -1,4 +1,5 @@
 const { Notification, Report } = require('../models');
+const { sendNotificationToUser } = require('../config/socket');
 
 // Obtener notificaciones del usuario
 exports.getNotifications = async (req, res) => {

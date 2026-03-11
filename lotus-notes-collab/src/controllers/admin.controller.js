@@ -38,10 +38,16 @@ exports.getAllReports = async (req, res) => {
   }
 };
 
-// Obtener estadísticas generales (admin)
+// Obtener estadísticas generales (admin) con filtros opcionales por mes/año
 exports.getStatistics = async (req, res) => {
   try {
-    const totalReports = await Report.count();
+    const { month, year } = req.query;
+
+    const whereClause = {};
+    if (month) whereClause.reportMonth = month;
+    if (year) whereClause.reportYear = year;
+
+    const totalReports = await Report.count({ where: whereClause });
     const totalStudents = await User.count({ where: { role: 'student' } });
     
     const reportsByStatus = await Report.findAll({
@@ -49,14 +55,16 @@ exports.getStatistics = async (req, res) => {
         'status',
         [Report.sequelize.fn('COUNT', Report.sequelize.col('id')), 'count']
       ],
+      where: whereClause,
       group: ['status']
     });
 
-    const totalHours = await Report.sum('totalHours');
+    const totalHours = await Report.sum('totalHours', { where: whereClause });
 
     const recentReports = await Report.findAll({
       limit: 10,
       order: [['createdAt', 'DESC']],
+      where: whereClause,
       include: [{
         model: User,
         as: 'student',

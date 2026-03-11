@@ -33,9 +33,14 @@ User.hasMany(Report, { foreignKey: 'assignedTo', as: 'assignedReports' });
 User.hasMany(Report, { foreignKey: 'assignedBy', as: 'createdReports' });
 User.hasMany(Report, { foreignKey: 'reviewedBy', as: 'reviewedReports' });
 
+// El brigadista/estudiante que elabora el reporte se guarda en assignedTo,
+// pero lo exponemos con alias "student" y "reports" para compatibilidad.
 Report.belongsTo(User, { foreignKey: 'assignedTo', as: 'brigadista' });
+Report.belongsTo(User, { foreignKey: 'assignedTo', as: 'student' });
 Report.belongsTo(User, { foreignKey: 'assignedBy', as: 'supervisor' });
 Report.belongsTo(User, { foreignKey: 'reviewedBy', as: 'reviewer' });
+
+User.hasMany(Report, { foreignKey: 'assignedTo', as: 'reports' });
 
 // Relaciones de Attachments
 Report.hasMany(Attachment, { foreignKey: 'reportId', as: 'attachments' });

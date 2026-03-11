@@ -18,23 +18,74 @@ function Calendar() {
   }, [])
 
   const loadEvents = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('No hay token de autenticación');
+      return;
+    }
+
     try {
-      const response = await api.get('/calendar')
-      setEvents(response.data.events)
+      const response = await api.get('/calendar');
+      setEvents(response.data.events || []);
     } catch (error) {
-      console.error('Error loading events:', error)
+      if (error.response?.status === 401) {
+        console.error('Sesión expirada');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        console.error('Error loading events:', error);
+      }
     }
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
+
+    // Validaciones
+    if (!formData.title.trim()) {
+      alert('El título es obligatorio');
+      return;
+    }
+
+    if (!formData.startDate || !formData.endDate) {
+      alert('Debes especificar fecha de inicio y fin');
+      return;
+    }
+
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+      alert('La fecha de fin no puede ser anterior a la fecha de inicio');
+      return;
+    }
+
+    const duration = (new Date(formData.endDate) - new Date(formData.startDate)) / (1000 * 60 * 60);
+    if (duration > 720) { // 30 días
+      if (!confirm('El evento dura más de 30 días. ¿Deseas continuar?')) {
+        return;
+      }
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      window.location.href = '/login';
+      return;
+    }
+
     try {
-      await api.post('/calendar', formData)
-      setFormData({ title: '', description: '', startDate: '', endDate: '', location: '', eventType: 'meeting' })
-      setShowForm(false)
-      loadEvents()
+      await api.post('/calendar', formData);
+      setFormData({ title: '', description: '', startDate: '', endDate: '', location: '', eventType: 'meeting' });
+      setShowForm(false);
+      loadEvents();
+      alert('Evento creado exitosamente');
     } catch (error) {
-      console.error('Error creating event:', error)
+      console.error('Error creating event:', error);
+      if (error.response?.status === 401) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        window.location.href = '/login';
+      } else {
+        alert(error.response?.data?.message || 'Error al crear el evento');
+      }
     }
   }
 

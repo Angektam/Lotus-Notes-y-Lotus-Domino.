@@ -107,15 +107,24 @@ exports.updateReport = async (req, res) => {
       });
     }
 
-    // Cambiar estado a EN_ELABORACION si está ASIGNADO
-    const newStatus = report.status === 'ASIGNADO' ? 'EN_ELABORACION' : report.status;
-    const workflowUpdate = report.status === 'ASIGNADO'
-      ? [...report.workflowHistory, {
-          state: 'EN_ELABORACION',
-          date: new Date(),
-          by: req.user.id,
-          comments: 'Brigadista inició elaboración'
-        }]
+    // Workflow:
+    // - ASIGNADO -> EN_ELABORACION (inicia elaboración)
+    // - OBSERVADO -> EN_ELABORACION (inicia correcciones)
+    const shouldMoveToElaboracion = report.status === 'ASIGNADO' || report.status === 'OBSERVADO';
+    const newStatus = shouldMoveToElaboracion ? 'EN_ELABORACION' : report.status;
+    const workflowUpdate = shouldMoveToElaboracion
+      ? [
+          ...report.workflowHistory,
+          {
+            state: 'EN_ELABORACION',
+            date: new Date(),
+            by: req.user.id,
+            comments:
+              report.status === 'OBSERVADO'
+                ? 'Brigadista inició correcciones'
+                : 'Brigadista inició elaboración'
+          }
+        ]
       : report.workflowHistory;
 
     await report.update({

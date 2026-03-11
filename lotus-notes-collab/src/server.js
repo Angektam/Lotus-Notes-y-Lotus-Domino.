@@ -29,6 +29,7 @@ app.use('/api/admin', require('./routes/admin.routes'));
 app.use('/api/supervisor', require('./routes/supervisor.routes'));
 app.use('/api/brigadista', require('./routes/brigadista.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/analytics', require('./routes/analytics.routes'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
@@ -51,12 +52,21 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 
+// Crear servidor HTTP para Socket.io
+const http = require('http');
+const server = http.createServer(app);
+
+// Inicializar Socket.io
+const { initializeSocket } = require('./config/socket');
+initializeSocket(server);
+
 // Inicializar agentes automáticos (Lotus Domino Agents)
 const { initAgents } = require('./agents/scheduler');
 initAgents();
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Servidor Lotus Domino corriendo en puerto ${PORT}`);
   console.log(`📊 Sistema de Workflow Supervisor-Brigadista activo`);
   console.log(`🤖 Agentes automáticos inicializados`);
+  console.log(`🔌 Socket.io activo para notificaciones en tiempo real`);
 });

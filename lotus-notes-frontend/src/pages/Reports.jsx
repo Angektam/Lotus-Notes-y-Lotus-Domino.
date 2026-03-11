@@ -28,14 +28,26 @@ function Reports() {
   }, []);
 
   const fetchReports = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('No hay token de autenticación');
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.get('/reports', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setReports(response.data.data);
+      setReports(response.data.data || []);
     } catch (error) {
-      console.error('Error al cargar informes:', error);
+      if (error.response?.status === 401) {
+        console.error('Sesión expirada');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        console.error('Error al cargar informes:', error);
+      }
     }
   };
 
@@ -86,9 +98,26 @@ function Reports() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validaciones adicionales
+    if (formData.totalHours < 0) {
+      alert('Las horas no pueden ser negativas');
+      return;
+    }
+
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+      alert('La fecha de fin no puede ser anterior a la fecha de inicio');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      window.location.href = '/login';
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
-      
       if (editingReport) {
         await axios.put(`/reports/${editingReport.id}`, formData, {
           headers: { Authorization: `Bearer ${token}` }
@@ -107,7 +136,12 @@ function Reports() {
       fetchReports();
     } catch (error) {
       console.error('Error al guardar informe:', error);
-      alert('Error al guardar el informe');
+      if (error.response?.status === 401) {
+        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        window.location.href = '/login';
+      } else {
+        alert(error.response?.data?.message || 'Error al guardar el informe');
+      }
     }
   };
 
