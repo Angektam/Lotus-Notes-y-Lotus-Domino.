@@ -1,5 +1,4 @@
 const { Report, User } = require('../models');
-const { Op } = require('sequelize');
 
 // Obtener todos los informes (admin)
 exports.getAllReports = async (req, res) => {
@@ -17,7 +16,7 @@ exports.getAllReports = async (req, res) => {
       where: whereClause,
       include: [{
         model: User,
-        as: 'student',
+        as: 'brigadista',
         attributes: ['id', 'username', 'email', 'fullName', 'department']
       }],
       order: [['createdAt', 'DESC']]
@@ -67,7 +66,7 @@ exports.getStatistics = async (req, res) => {
       where: whereClause,
       include: [{
         model: User,
-        as: 'student',
+        as: 'brigadista',
         attributes: ['id', 'username', 'fullName']
       }]
     });

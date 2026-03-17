@@ -39,31 +39,47 @@ exports.getMyTasks = async (req, res) => {
 exports.updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const task = await Task.findByPk(id);
+    // Solo el creador o el asignado puede modificar la tarea
+    const task = await Task.findOne({
+      where: {
+        id,
+        [require('sequelize').Op.or]: [
+          { createdBy: req.user.id },
+          { assignedTo: req.user.id }
+        ]
+      }
+    });
 
     if (!task) {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
+      return res.status(404).json({ error: 'Tarea no encontrada o sin permisos' });
     }
 
-    await task.update(req.body);
+    // Evitar que se sobreescriban campos sensibles
+    const { title, description, priority, dueDate, status } = req.body;
+    await task.update({ title, description, priority, dueDate, status });
     res.json({ message: 'Tarea actualizada', task });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al actualizar tarea:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
 exports.deleteTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const task = await Task.findByPk(id);
+    // Solo el creador puede eliminar la tarea
+    const task = await Task.findOne({
+      where: { id, createdBy: req.user.id }
+    });
 
     if (!task) {
-      return res.status(404).json({ error: 'Tarea no encontrada' });
+      return res.status(404).json({ error: 'Tarea no encontrada o sin permisos' });
     }
 
     await task.destroy();
     res.json({ message: 'Tarea eliminada' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al eliminar tarea:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };

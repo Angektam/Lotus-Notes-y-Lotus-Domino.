@@ -13,6 +13,7 @@ function AdminReports() {
   const [showModal, setShowModal] = useState(false);
   const [reviewComments, setReviewComments] = useState('');
   const [loading, setLoading] = useState(true);
+  const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     loadReports();
@@ -24,11 +25,8 @@ function AdminReports() {
 
   const loadReports = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await api.get('/admin/reports', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setReports(response.data.data);
+      const response = await api.get('/admin/reports');
+      setReports(response.data.data || []);
       setLoading(false);
     } catch (error) {
       console.error('Error al cargar informes:', error);
@@ -46,9 +44,10 @@ function AdminReports() {
     if (filters.search) {
       const search = filters.search.toLowerCase();
       filtered = filtered.filter(r => 
-        r.student?.fullName?.toLowerCase().includes(search) ||
-        r.student?.username?.toLowerCase().includes(search) ||
-        r.projectName?.toLowerCase().includes(search)
+        r.brigadista?.fullName?.toLowerCase().includes(search) ||
+        r.brigadista?.username?.toLowerCase().includes(search) ||
+        r.projectName?.toLowerCase().includes(search) ||
+        r.title?.toLowerCase().includes(search)
       );
     }
 
@@ -57,40 +56,32 @@ function AdminReports() {
 
   const handleApprove = async (reportId) => {
     try {
-      const token = localStorage.getItem('token');
-      await api.put(`/admin/reports/${reportId}/approve`, 
-        { comments: reviewComments },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      alert('Informe aprobado exitosamente');
+      await api.put(`/admin/reports/${reportId}/approve`, { comments: reviewComments });
+      setActionMessage({ type: 'success', text: 'Informe aprobado exitosamente' });
       setShowModal(false);
       setReviewComments('');
       loadReports();
     } catch (error) {
       console.error('Error al aprobar informe:', error);
-      alert('Error al aprobar el informe');
+      setActionMessage({ type: 'error', text: error.response?.data?.message || 'Error al aprobar el informe' });
     }
   };
 
   const handleReject = async (reportId) => {
     if (!reviewComments.trim()) {
-      alert('Debes proporcionar comentarios al rechazar un informe');
+      setActionMessage({ type: 'error', text: 'Debes proporcionar comentarios al rechazar un informe' });
       return;
     }
 
     try {
-      const token = localStorage.getItem('token');
-      await api.put(`/admin/reports/${reportId}/reject`, 
-        { comments: reviewComments },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      alert('Informe rechazado');
+      await api.put(`/admin/reports/${reportId}/reject`, { comments: reviewComments });
+      setActionMessage({ type: 'success', text: 'Informe rechazado con observaciones' });
       setShowModal(false);
       setReviewComments('');
       loadReports();
     } catch (error) {
       console.error('Error al rechazar informe:', error);
-      alert('Error al rechazar el informe');
+      setActionMessage({ type: 'error', text: error.response?.data?.message || 'Error al rechazar el informe' });
     }
   };
 
@@ -125,6 +116,13 @@ function AdminReports() {
         <h1>📋 Gestión de Informes</h1>
         <p className="subtitle">Revisa y aprueba los informes de servicio social</p>
       </div>
+
+      {actionMessage.text && (
+        <div className={actionMessage.type === 'success' ? 'success-message' : 'error-message'} style={{ marginBottom: '16px' }}>
+          {actionMessage.text}
+          <button onClick={() => setActionMessage({ type: '', text: '' })} style={{ marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="filters-card card">
@@ -171,11 +169,11 @@ function AdminReports() {
               <div className="report-card-header">
                 <div className="student-info">
                   <div className="student-avatar">
-                    {report.student?.fullName?.[0] || 'U'}
+                    {report.brigadista?.fullName?.[0] || 'U'}
                   </div>
                   <div>
-                    <h3>{report.student?.fullName || report.student?.username}</h3>
-                    <p className="student-email">{report.student?.email}</p>
+                    <h3>{report.brigadista?.fullName || report.brigadista?.username || report.studentName}</h3>
+                    <p className="student-email">{report.brigadista?.email}</p>
                   </div>
                 </div>
                 <span className={`badge ${getStatusBadge(report.status).class}`}>
@@ -257,7 +255,7 @@ function AdminReports() {
 
             <div className="modal-body">
               <div className="report-full-details">
-                <h3>{selectedReport.student?.fullName}</h3>
+                <h3>{selectedReport.brigadista?.fullName || selectedReport.studentName}</h3>
                 <p><strong>Periodo:</strong> {selectedReport.reportMonth} {selectedReport.reportYear}</p>
                 <p><strong>Proyecto:</strong> {selectedReport.projectName}</p>
                 <p><strong>Dependencia:</strong> {selectedReport.dependencyName}</p>

@@ -289,9 +289,9 @@ function AdminDashboard() {
                     <td>
                       <div className="student-info">
                         <div className="student-avatar">
-                          {report.student?.fullName?.[0] || report.student?.username?.[0] || 'U'}
+                          {report.brigadista?.fullName?.[0] || report.brigadista?.username?.[0] || 'U'}
                         </div>
-                        <span>{report.student?.fullName || report.student?.username}</span>
+                        <span>{report.brigadista?.fullName || report.brigadista?.username || report.studentName}</span>
                       </div>
                     </td>
                     <td>{report.reportMonth} {report.reportYear}</td>

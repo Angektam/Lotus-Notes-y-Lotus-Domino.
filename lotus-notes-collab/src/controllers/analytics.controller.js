@@ -1,4 +1,4 @@
-const { Report, User, Notification } = require('../models');
+const { Report, User } = require('../models');
 const { Op } = require('sequelize');
 const ExcelJS = require('exceljs');
 
@@ -84,22 +84,29 @@ exports.getSupervisorAnalytics = async (req, res) => {
       }
     });
 
-    // Tendencia mensual (últimos 6 meses)
+    // Tendencia mensual (últimos 6 meses) - compatible con SQLite
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    const monthlyTrend = await Report.findAll({
+    const monthlyTrendRaw = await Report.findAll({
       where: {
         assignedBy: supervisorId,
         createdAt: { [Op.gte]: sixMonthsAgo }
       },
-      attributes: [
-        [Report.sequelize.fn('DATE_FORMAT', Report.sequelize.col('createdAt'), '%Y-%m'), 'month'],
-        [Report.sequelize.fn('COUNT', Report.sequelize.col('id')), 'count']
-      ],
-      group: [Report.sequelize.fn('DATE_FORMAT', Report.sequelize.col('createdAt'), '%Y-%m')],
-      order: [[Report.sequelize.fn('DATE_FORMAT', Report.sequelize.col('createdAt'), '%Y-%m'), 'ASC']]
+      attributes: ['createdAt'],
+      order: [['createdAt', 'ASC']]
     });
+
+    // Agrupar por mes en JS (compatible con SQLite y MySQL)
+    const monthlyMap = {};
+    monthlyTrendRaw.forEach(r => {
+      const d = new Date(r.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthlyMap[key] = (monthlyMap[key] || 0) + 1;
+    });
+    const monthlyTrend = Object.entries(monthlyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, count]) => ({ month, count }));
 
     res.json({
       summary: {
@@ -118,10 +125,7 @@ exports.getSupervisorAnalytics = async (req, res) => {
         brigadistaName: r.brigadista?.fullName || r.brigadista?.username,
         count: parseInt(r.dataValues.count)
       })),
-      monthlyTrend: monthlyTrend.map(m => ({
-        month: m.dataValues.month,
-        count: parseInt(m.dataValues.count)
-      }))
+      monthlyTrend
     });
   } catch (error) {
     console.error('Error en getSupervisorAnalytics:', error);
@@ -225,9 +229,9 @@ exports.exportReportsToExcel = async (req, res) => {
     // Construir filtros
     const where = {};
     
-    if (userRole === 'SUPERVISOR') {
+    if (userRole === 'supervisor') {
       where.assignedBy = userId;
-    } else if (userRole === 'BRIGADISTA') {
+    } else if (userRole === 'brigadista') {
       where.assignedTo = userId;
     }
 
@@ -241,7 +245,7 @@ exports.exportReportsToExcel = async (req, res) => {
       where.status = status;
     }
 
-    if (assignedTo && userRole === 'SUPERVISOR') {
+    if (assignedTo && userRole === 'supervisor') {
       where.assignedTo = assignedTo;
     }
 
@@ -332,10 +336,10 @@ exports.advancedSearch = async (req, res) => {
     // Construir filtros
     const where = {};
 
-    // Filtro por rol
-    if (userRole === 'SUPERVISOR') {
+    // Filtro por rol (roles en minúsculas según el modelo User)
+    if (userRole === 'supervisor') {
       where.assignedBy = userId;
-    } else if (userRole === 'BRIGADISTA') {
+    } else if (userRole === 'brigadista') {
       where.assignedTo = userId;
     }
 
@@ -350,8 +354,8 @@ exports.advancedSearch = async (req, res) => {
     // Filtros adicionales
     if (status) where.status = status;
     if (priority) where.priority = priority;
-    if (assignedTo && userRole === 'SUPERVISOR') where.assignedTo = assignedTo;
-    if (assignedBy && userRole === 'ADMIN') where.assignedBy = assignedBy;
+    if (assignedTo && userRole === 'supervisor') where.assignedTo = assignedTo;
+    if (assignedBy && userRole === 'admin') where.assignedBy = assignedBy;
 
     if (startDate && endDate) {
       where.createdAt = {

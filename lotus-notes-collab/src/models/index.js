@@ -29,18 +29,16 @@ Message.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
 Message.belongsTo(User, { foreignKey: 'receiverId', as: 'receiver' });
 
 // Relaciones de Reportes (Workflow Lotus Domino)
+// NOTA: Un FK solo puede tener UN alias en belongsTo para evitar conflictos en Sequelize.
+// Usamos 'brigadista' como alias principal para assignedTo (el que elabora el reporte).
 User.hasMany(Report, { foreignKey: 'assignedTo', as: 'assignedReports' });
 User.hasMany(Report, { foreignKey: 'assignedBy', as: 'createdReports' });
 User.hasMany(Report, { foreignKey: 'reviewedBy', as: 'reviewedReports' });
+User.hasMany(Report, { foreignKey: 'assignedTo', as: 'reports' });
 
-// El brigadista/estudiante que elabora el reporte se guarda en assignedTo,
-// pero lo exponemos con alias "student" y "reports" para compatibilidad.
 Report.belongsTo(User, { foreignKey: 'assignedTo', as: 'brigadista' });
-Report.belongsTo(User, { foreignKey: 'assignedTo', as: 'student' });
 Report.belongsTo(User, { foreignKey: 'assignedBy', as: 'supervisor' });
 Report.belongsTo(User, { foreignKey: 'reviewedBy', as: 'reviewer' });
-
-User.hasMany(Report, { foreignKey: 'assignedTo', as: 'reports' });
 
 // Relaciones de Attachments
 Report.hasMany(Attachment, { foreignKey: 'reportId', as: 'attachments' });

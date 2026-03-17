@@ -1,7 +1,7 @@
 const { Report, User } = require('../models');
 const { Op } = require('sequelize');
 
-// Crear nuevo informe
+// Crear nuevo informe (flujo estudiante/legacy)
 exports.createReport = async (req, res) => {
   try {
     const {
@@ -21,20 +21,35 @@ exports.createReport = async (req, res) => {
       reportYear
     } = req.body;
 
+    // Validaciones básicas
+    if (!studentName || !studentName.trim()) {
+      return res.status(400).json({ success: false, message: 'El nombre del estudiante es requerido' });
+    }
+    if (totalHours !== undefined && (isNaN(totalHours) || Number(totalHours) < 0)) {
+      return res.status(400).json({ success: false, message: 'Las horas totales deben ser un número positivo' });
+    }
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      return res.status(400).json({ success: false, message: 'La fecha de fin no puede ser anterior a la fecha de inicio' });
+    }
+
     const report = await Report.create({
-      userId: req.user.id,
-      studentName,
-      academicUnit,
-      career,
-      accountNumber,
-      dependencyName,
-      projectName,
+      // En el flujo legacy, el estudiante es tanto assignedTo como assignedBy
+      assignedTo: req.user.id,
+      assignedBy: req.user.id,
+      dueDate: endDate || new Date(),
+      title: projectName || `Informe ${reportMonth} ${reportYear}`,
+      studentName: studentName?.trim(),
+      academicUnit: academicUnit?.trim(),
+      career: career?.trim(),
+      accountNumber: accountNumber?.trim(),
+      dependencyName: dependencyName?.trim(),
+      projectName: projectName?.trim(),
       startDate,
       endDate,
-      totalHours,
+      totalHours: Number(totalHours) || 0,
       objectives: objectives || [],
       participants: participants || [],
-      observations,
+      observations: observations?.trim(),
       reportMonth,
       reportYear,
       status: 'draft'
@@ -59,11 +74,11 @@ exports.createReport = async (req, res) => {
 exports.getReports = async (req, res) => {
   try {
     const reports = await Report.findAll({
-      where: { userId: req.user.id },
+      where: { assignedTo: req.user.id },
       order: [['reportYear', 'DESC'], ['reportMonth', 'DESC']],
       include: [{
         model: User,
-        as: 'student',
+        as: 'brigadista',
         attributes: ['id', 'fullName', 'email']
       }]
     });
@@ -88,11 +103,11 @@ exports.getReportById = async (req, res) => {
     const report = await Report.findOne({
       where: {
         id: req.params.id,
-        userId: req.user.id
+        assignedTo: req.user.id
       },
       include: [{
         model: User,
-        as: 'student',
+        as: 'brigadista',
         attributes: ['id', 'fullName', 'email']
       }]
     });
@@ -124,7 +139,7 @@ exports.updateReport = async (req, res) => {
     const report = await Report.findOne({
       where: {
         id: req.params.id,
-        userId: req.user.id
+        assignedTo: req.user.id
       }
     });
 
@@ -135,36 +150,31 @@ exports.updateReport = async (req, res) => {
       });
     }
 
+    // Solo se puede editar si está en estado editable
+    const editableStatuses = ['draft', 'ASIGNADO', 'EN_ELABORACION', 'OBSERVADO'];
+    if (!editableStatuses.includes(report.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El informe no puede ser editado en su estado actual'
+      });
+    }
+
     const {
-      studentName,
-      academicUnit,
-      career,
-      accountNumber,
-      dependencyName,
-      projectName,
-      startDate,
-      endDate,
-      totalHours,
-      objectives,
-      participants,
-      observations,
-      status
+      studentName, academicUnit, career, accountNumber,
+      dependencyName, projectName, startDate, endDate,
+      totalHours, objectives, participants, observations, status
     } = req.body;
 
+    // Validar horas si se envían
+    if (totalHours !== undefined && (isNaN(totalHours) || Number(totalHours) < 0)) {
+      return res.status(400).json({ success: false, message: 'Las horas totales deben ser un número positivo' });
+    }
+
     await report.update({
-      studentName,
-      academicUnit,
-      career,
-      accountNumber,
-      dependencyName,
-      projectName,
-      startDate,
-      endDate,
-      totalHours,
-      objectives,
-      participants,
-      observations,
-      status
+      studentName, academicUnit, career, accountNumber,
+      dependencyName, projectName, startDate, endDate,
+      totalHours: totalHours !== undefined ? Number(totalHours) : report.totalHours,
+      objectives, participants, observations, status
     });
 
     res.json({
@@ -188,7 +198,7 @@ exports.deleteReport = async (req, res) => {
     const report = await Report.findOne({
       where: {
         id: req.params.id,
-        userId: req.user.id
+        assignedTo: req.user.id
       }
     });
 
@@ -196,6 +206,14 @@ exports.deleteReport = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Informe no encontrado'
+      });
+    }
+
+    // Solo se puede eliminar si está en borrador
+    if (!['draft', 'ASIGNADO'].includes(report.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo se pueden eliminar informes en estado borrador'
       });
     }
 
@@ -221,7 +239,7 @@ exports.addEvidence = async (req, res) => {
     const report = await Report.findOne({
       where: {
         id: req.params.id,
-        userId: req.user.id
+        assignedTo: req.user.id
       }
     });
 
@@ -260,7 +278,7 @@ exports.submitReport = async (req, res) => {
     const report = await Report.findOne({
       where: {
         id: req.params.id,
-        userId: req.user.id
+        assignedTo: req.user.id
       }
     });
 
