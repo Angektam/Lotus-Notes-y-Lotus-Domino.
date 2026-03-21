@@ -7,6 +7,8 @@ const checkRole = require('../middleware/checkRole');
 // Gestión de brigadistas
 router.post('/brigadistas', authenticate, checkRole('supervisor', 'admin'), supervisorController.registerBrigadista);
 router.get('/brigadistas', authenticate, checkRole('supervisor', 'admin'), supervisorController.getBrigadistas);
+router.put('/brigadistas/:id', authenticate, checkRole('supervisor', 'admin'), supervisorController.updateBrigadista);
+router.delete('/brigadistas/:id', authenticate, checkRole('supervisor', 'admin'), supervisorController.deleteBrigadista);
 
 // Gestión de reportes
 router.post('/reports/assign', authenticate, checkRole('supervisor', 'admin'), supervisorController.assignReport);

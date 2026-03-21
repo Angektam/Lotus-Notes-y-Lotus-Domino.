@@ -86,6 +86,26 @@ function BrigadistaDashboard() {
             <h3>Mis reportes</h3>
             <p>Elaborar, enviar y corregir</p>
           </Link>
+          <Link to="/tasks" className="action-card">
+            <div className="action-icon">✅</div>
+            <h3>Tareas</h3>
+            <p>Gestiona tus tareas</p>
+          </Link>
+          <Link to="/notes" className="action-card">
+            <div className="action-icon">📝</div>
+            <h3>Notas</h3>
+            <p>Tus apuntes y notas</p>
+          </Link>
+          <Link to="/messages" className="action-card">
+            <div className="action-icon">💬</div>
+            <h3>Mensajes</h3>
+            <p>Bandeja de entrada</p>
+          </Link>
+          <Link to="/calendar" className="action-card">
+            <div className="action-icon">📅</div>
+            <h3>Calendario</h3>
+            <p>Eventos y recordatorios</p>
+          </Link>
         </div>
       </div>
 

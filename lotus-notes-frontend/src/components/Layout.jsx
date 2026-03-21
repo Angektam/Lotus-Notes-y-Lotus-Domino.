@@ -26,7 +26,7 @@ function Layout({ onLogout, userRole }) {
   const isActive = (path) => location.pathname === path ? 'active' : ''
 
   return (
-    <div className="layout">
+    <div className={`layout${isBrigadista ? ' theme-brigadista' : isSupervisor ? ' theme-supervisor' : ''}`}>
       <nav className="sidebar">
         <div className="logo">
           <h2>📋 Servicio Social</h2>
@@ -56,6 +56,7 @@ function Layout({ onLogout, userRole }) {
               <li><Link to="/tasks" className={isActive('/tasks')}>✓ Tareas</Link></li>
               <li><Link to="/calendar" className={isActive('/calendar')}>📅 Calendario</Link></li>
               <li><Link to="/messages" className={isActive('/messages')}>💬 Mensajes</Link></li>
+              <li><Link to="/gallery" className={isActive('/gallery')}>🖼️ Galería</Link></li>
             </>
           ) : isSupervisor ? (
             // Menú de Supervisor
@@ -64,20 +65,25 @@ function Layout({ onLogout, userRole }) {
               <li><Link to="/supervisor/brigadistas" className={isActive('/supervisor/brigadistas')}>👥 Brigadistas</Link></li>
               <li><Link to="/supervisor/assign" className={isActive('/supervisor/assign')}>📌 Asignar Reporte</Link></li>
               <li><Link to="/supervisor/pending" className={isActive('/supervisor/pending')}>🔎 Pendientes</Link></li>
+              <li><Link to="/supervisor/search" className={isActive('/supervisor/search')}>🔍 Búsqueda</Link></li>
+              <li><Link to="/analytics" className={isActive('/analytics')}>📈 Analíticas</Link></li>
               <li><Link to="/notes" className={isActive('/notes')}>📄 Notas</Link></li>
               <li><Link to="/tasks" className={isActive('/tasks')}>✓ Tareas</Link></li>
               <li><Link to="/calendar" className={isActive('/calendar')}>📅 Calendario</Link></li>
               <li><Link to="/messages" className={isActive('/messages')}>💬 Mensajes</Link></li>
+              <li><Link to="/gallery" className={isActive('/gallery')}>🖼️ Galería</Link></li>
             </>
           ) : isBrigadista ? (
             // Menú de Brigadista
             <>
               <li><Link to="/" className={isActive('/')}>📊 Dashboard</Link></li>
               <li><Link to="/brigadista/reports" className={isActive('/brigadista/reports')}>📋 Mis Reportes</Link></li>
+              <li><Link to="/analytics" className={isActive('/analytics')}>📈 Analíticas</Link></li>
               <li><Link to="/notes" className={isActive('/notes')}>📝 Notas</Link></li>
               <li><Link to="/tasks" className={isActive('/tasks')}>✓ Tareas</Link></li>
               <li><Link to="/calendar" className={isActive('/calendar')}>📅 Calendario</Link></li>
               <li><Link to="/messages" className={isActive('/messages')}>💬 Mensajes</Link></li>
+              <li><Link to="/gallery" className={isActive('/gallery')}>🖼️ Galería</Link></li>
             </>
           ) : (
             // Menú de Estudiante
@@ -88,6 +94,7 @@ function Layout({ onLogout, userRole }) {
               <li><Link to="/tasks" className={isActive('/tasks')}>✓ Tareas</Link></li>
               <li><Link to="/calendar" className={isActive('/calendar')}>📅 Calendario</Link></li>
               <li><Link to="/messages" className={isActive('/messages')}>💬 Mensajes</Link></li>
+              <li><Link to="/gallery" className={isActive('/gallery')}>🖼️ Galería</Link></li>
             </>
           )}
         </ul>

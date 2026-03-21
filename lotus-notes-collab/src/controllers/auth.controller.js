@@ -115,6 +115,32 @@ exports.login = async (req, res) => {
   }
 };
 
+exports.searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ error: 'Escribe al menos 2 caracteres para buscar' });
+    }
+    const { Op } = require('sequelize');
+    const users = await User.findAll({
+      where: {
+        [Op.or]: [
+          { fullName: { [Op.like]: `%${q}%` } },
+          { username: { [Op.like]: `%${q}%` } },
+          { email: { [Op.like]: `%${q}%` } }
+        ],
+        id: { [Op.ne]: req.user.id }
+      },
+      attributes: ['id', 'username', 'fullName', 'email', 'role'],
+      limit: 10
+    });
+    res.json({ users });
+  } catch (error) {
+    console.error('Error en searchUsers:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 exports.getProfile = async (req, res) => {
   try {
     res.json({

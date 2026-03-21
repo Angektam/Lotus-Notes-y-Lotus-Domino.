@@ -3,7 +3,20 @@ const { Message, User } = require('../models');
 exports.sendMessage = async (req, res) => {
   try {
     const { receiverId, subject, body, priority } = req.body;
-    
+
+    if (!receiverId || isNaN(parseInt(receiverId)) || parseInt(receiverId) <= 0)
+      return res.status(400).json({ error: 'El destinatario es inválido' });
+    if (parseInt(receiverId) === req.user.id)
+      return res.status(400).json({ error: 'No puedes enviarte un mensaje a ti mismo' });
+    if (!subject || !subject.trim()) return res.status(400).json({ error: 'El asunto es obligatorio' });
+    if (subject.trim().length > 200) return res.status(400).json({ error: 'El asunto no puede exceder 200 caracteres' });
+    if (!body || !body.trim()) return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
+    const validPriorities = ['low', 'normal', 'high'];
+    if (priority && !validPriorities.includes(priority)) return res.status(400).json({ error: 'Prioridad inválida' });
+
+    const receiver = await User.findByPk(parseInt(receiverId));
+    if (!receiver) return res.status(404).json({ error: 'El destinatario no existe' });
+
     const message = await Message.create({
       senderId: req.user.id,
       receiverId,

@@ -1,5 +1,7 @@
 const { Report, User, Notification } = require('../models');
 const { Op } = require('sequelize');
+const { REPORT_STATUS } = require('../utils/reportStatus');
+const { createAndSendNotification } = require('../utils/notificationHelper');
 
 // Registrar nuevo brigadista
 exports.registerBrigadista = async (req, res) => {
@@ -54,6 +56,41 @@ exports.registerBrigadista = async (req, res) => {
   }
 };
 
+// Actualizar brigadista
+exports.updateBrigadista = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fullName, zone, team } = req.body;
+
+    const brigadista = await User.findOne({ where: { id, role: 'brigadista' } });
+    if (!brigadista) return res.status(404).json({ success: false, message: 'Brigadista no encontrado' });
+
+    await brigadista.update({
+      fullName: fullName || brigadista.fullName,
+      brigadistaProfile: { ...brigadista.brigadistaProfile, zone: zone ?? brigadista.brigadistaProfile?.zone, team: team ?? brigadista.brigadistaProfile?.team }
+    });
+
+    res.json({ success: true, message: 'Brigadista actualizado', data: brigadista });
+  } catch (error) {
+    console.error('Error al actualizar brigadista:', error);
+    res.status(500).json({ success: false, message: 'Error al actualizar brigadista', error: error.message });
+  }
+};
+
+// Eliminar brigadista
+exports.deleteBrigadista = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const brigadista = await User.findOne({ where: { id, role: 'brigadista' } });
+    if (!brigadista) return res.status(404).json({ success: false, message: 'Brigadista no encontrado' });
+    await brigadista.destroy();
+    res.json({ success: true, message: 'Brigadista eliminado' });
+  } catch (error) {
+    console.error('Error al eliminar brigadista:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar brigadista', error: error.message });
+  }
+};
+
 // Listar brigadistas
 exports.getBrigadistas = async (req, res) => {
   try {
@@ -102,14 +139,14 @@ exports.assignReport = async (req, res) => {
       description,
       periodStart,
       periodEnd,
-      status: 'ASIGNADO',
+      status: REPORT_STATUS.ASIGNADO,
       brigadistaInfo: {
         name: brigadista.fullName,
         zone: brigadista.brigadistaProfile?.zone || '',
         team: brigadista.brigadistaProfile?.team || ''
       },
       workflowHistory: [{
-        state: 'ASIGNADO',
+        state: REPORT_STATUS.ASIGNADO,
         date: new Date(),
         by: req.user.id,
         comments: 'Reporte asignado'
@@ -122,8 +159,8 @@ exports.assignReport = async (req, res) => {
       }]
     });
 
-    // Crear notificación para el brigadista
-    await Notification.create({
+    // Crear y enviar notificación en tiempo real al brigadista
+    await createAndSendNotification({
       userId: brigadistaId,
       type: 'REPORT_ASSIGNED',
       title: 'Nuevo reporte asignado',
@@ -152,7 +189,7 @@ exports.getPendingReports = async (req, res) => {
   try {
     const reports = await Report.findAll({
       where: {
-        status: 'ENVIADO',
+        status: REPORT_STATUS.ENVIADO,
         assignedBy: req.user.id
       },
       include: [{
@@ -199,14 +236,14 @@ exports.reviewReport = async (req, res) => {
       });
     }
 
-    if (report.status !== 'ENVIADO') {
+    if (report.status !== REPORT_STATUS.ENVIADO) {
       return res.status(400).json({
         success: false,
         message: 'El reporte no está disponible para revisión'
       });
     }
 
-    const newStatus = action === 'APPROVE' ? 'APROBADO' : 'OBSERVADO';
+    const newStatus = action === 'APPROVE' ? REPORT_STATUS.APROBADO : REPORT_STATUS.OBSERVADO;
 
     // Actualizar reporte
     await report.update({
@@ -235,8 +272,8 @@ exports.reviewReport = async (req, res) => {
       ]
     });
 
-    // Crear notificación para el brigadista
-    await Notification.create({
+    // Crear y enviar notificación en tiempo real al brigadista
+    await createAndSendNotification({
       userId: report.assignedTo,
       type: action === 'APPROVE' ? 'REPORT_APPROVED' : 'REPORT_REJECTED',
       title: action === 'APPROVE' ? 'Reporte aprobado' : 'Reporte con observaciones',
@@ -311,18 +348,18 @@ exports.getDashboardStats = async (req, res) => {
     });
 
     const pendingReview = await Report.count({
-      where: { assignedBy: supervisorId, status: 'ENVIADO' }
+      where: { assignedBy: supervisorId, status: REPORT_STATUS.ENVIADO }
     });
 
     const approved = await Report.count({
-      where: { assignedBy: supervisorId, status: 'APROBADO' }
+      where: { assignedBy: supervisorId, status: REPORT_STATUS.APROBADO }
     });
 
     const overdue = await Report.count({
       where: {
         assignedBy: supervisorId,
         dueDate: { [Op.lt]: new Date() },
-        status: { [Op.notIn]: ['APROBADO'] }
+        status: { [Op.notIn]: [REPORT_STATUS.APROBADO] }
       }
     });
 

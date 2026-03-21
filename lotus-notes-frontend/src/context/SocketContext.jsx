@@ -5,9 +5,7 @@ const SocketContext = createContext();
 
 export const useSocket = () => {
   const context = useContext(SocketContext);
-  if (!context) {
-    throw new Error('useSocket debe usarse dentro de SocketProvider');
-  }
+  if (!context) throw new Error('useSocket debe usarse dentro de SocketProvider');
   return context;
 };
 
@@ -17,71 +15,48 @@ export const SocketProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    // Conectar a Socket.io
-    const newSocket = io('http://localhost:4000', {
+    const newSocket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000', {
       autoConnect: false
     });
 
     newSocket.on('connect', () => {
-      console.log('✅ Conectado a Socket.io');
       setConnected(true);
-
-      // Autenticar usuario
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (user.id) {
-        newSocket.emit('authenticate', user.id);
-      }
+      // Autenticar con JWT en lugar de userId plano
+      const token = localStorage.getItem('token');
+      if (token) newSocket.emit('authenticate', token);
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('❌ Desconectado de Socket.io');
-      setConnected(false);
+    newSocket.on('authenticated', ({ success }) => {
+      if (!success) console.warn('Socket: autenticación fallida');
     });
 
-    // Escuchar notificaciones
+    newSocket.on('disconnect', () => setConnected(false));
+
     newSocket.on('notification', (notification) => {
-      console.log('📨 Nueva notificación:', notification);
       setNotifications(prev => [notification, ...prev]);
-      
-      // Mostrar notificación del navegador
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(notification.title, {
-          body: notification.message,
-          icon: '/logo.png'
-        });
+        new Notification(notification.title, { body: notification.message });
       }
     });
 
-    // Escuchar actualizaciones de reportes
     newSocket.on('reportUpdate', (report) => {
-      console.log('📊 Actualización de reporte:', report);
-      // Disparar evento personalizado para que otros componentes lo escuchen
       window.dispatchEvent(new CustomEvent('reportUpdate', { detail: report }));
     });
 
     setSocket(newSocket);
-
-    return () => {
-      newSocket.close();
-    };
+    return () => newSocket.close();
   }, []);
 
-  // Conectar socket cuando el usuario hace login
   const connectSocket = () => {
-    const token = localStorage.getItem('token');
-    if (socket && !connected && token) {
+    if (socket && !socket.connected && localStorage.getItem('token')) {
       socket.connect();
     }
   };
 
-  // Desconectar socket cuando el usuario hace logout
   const disconnectSocket = () => {
-    if (socket && connected) {
-      socket.disconnect();
-    }
+    if (socket?.connected) socket.disconnect();
   };
 
-  // Solicitar permisos de notificaciones
   const requestNotificationPermission = async () => {
     if ('Notification' in window && Notification.permission === 'default') {
       await Notification.requestPermission();
@@ -89,16 +64,7 @@ export const SocketProvider = ({ children }) => {
   };
 
   return (
-    <SocketContext.Provider
-      value={{
-        socket,
-        connected,
-        notifications,
-        connectSocket,
-        disconnectSocket,
-        requestNotificationPermission
-      }}
-    >
+    <SocketContext.Provider value={{ socket, connected, notifications, connectSocket, disconnectSocket, requestNotificationPermission }}>
       {children}
     </SocketContext.Provider>
   );

@@ -1,5 +1,4 @@
 require('dotenv').config();
-const bcrypt = require('bcryptjs');
 const { sequelize } = require('./src/config/database');
 const User = require('./src/models/User');
 const Report = require('./src/models/Report');
@@ -13,17 +12,17 @@ async function initDatabase() {
   try {
     console.log('🔄 Inicializando base de datos SQLite...');
 
-    // Forzar recreación de tablas
+    // Deshabilitar foreign key checks para poder borrar tablas
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
     await sequelize.sync({ force: true });
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
     console.log('✓ Tablas creadas exitosamente');
 
-    // Crear usuarios de prueba
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-
+    // Crear usuarios de prueba (sin hashear, el modelo lo hace automáticamente)
     const admin = await User.create({
       username: 'admin',
       email: 'admin@example.com',
-      password: hashedPassword,
+      password: 'admin123',
       fullName: 'Administrador',
       role: 'admin',
       department: 'Administración'
@@ -32,7 +31,7 @@ async function initDatabase() {
     const supervisor = await User.create({
       username: 'supervisor',
       email: 'supervisor@example.com',
-      password: hashedPassword,
+      password: 'admin123',
       fullName: 'Supervisor Principal',
       role: 'supervisor',
       department: 'Supervisión'
@@ -41,7 +40,7 @@ async function initDatabase() {
     const brigadista = await User.create({
       username: 'brigadista',
       email: 'brigadista@example.com',
-      password: hashedPassword,
+      password: 'admin123',
       fullName: 'Brigadista de Prueba',
       role: 'brigadista',
       department: 'Brigada'
@@ -50,7 +49,7 @@ async function initDatabase() {
     const student = await User.create({
       username: 'estudiante',
       email: 'estudiante@example.com',
-      password: hashedPassword,
+      password: 'admin123',
       fullName: 'Estudiante de Prueba',
       role: 'student',
       department: 'Servicio Social'

@@ -91,14 +91,23 @@ function AdminReports() {
     setShowModal(true);
   };
 
+  const isReviewable = (status) => {
+    return status === 'submitted' || status === 'ENVIADO'
+  }
+
   const getStatusBadge = (status) => {
     const badges = {
       draft: { text: 'Borrador', class: 'badge-secondary' },
       submitted: { text: 'Pendiente', class: 'badge-warning' },
       approved: { text: 'Aprobado', class: 'badge-success' },
-      rejected: { text: 'Rechazado', class: 'badge-danger' }
+      rejected: { text: 'Rechazado', class: 'badge-danger' },
+      ASIGNADO: { text: 'Asignado', class: 'badge-primary' },
+      EN_ELABORACION: { text: 'En elaboración', class: 'badge-warning' },
+      ENVIADO: { text: 'Enviado', class: 'badge-warning' },
+      OBSERVADO: { text: 'Con observaciones', class: 'badge-danger' },
+      APROBADO: { text: 'Aprobado', class: 'badge-success' }
     };
-    return badges[status] || badges.draft;
+    return badges[status] || { text: status, class: 'badge-secondary' };
   };
 
   if (loading) {
@@ -134,10 +143,15 @@ function AdminReports() {
               onChange={(e) => setFilters({...filters, status: e.target.value})}
             >
               <option value="all">Todos</option>
-              <option value="submitted">Pendientes</option>
-              <option value="approved">Aprobados</option>
-              <option value="rejected">Rechazados</option>
-              <option value="draft">Borradores</option>
+              <option value="submitted">Pendiente (legacy)</option>
+              <option value="ENVIADO">Enviado</option>
+              <option value="approved">Aprobado (legacy)</option>
+              <option value="APROBADO">Aprobado</option>
+              <option value="rejected">Rechazado (legacy)</option>
+              <option value="OBSERVADO">Con observaciones</option>
+              <option value="draft">Borrador</option>
+              <option value="ASIGNADO">Asignado</option>
+              <option value="EN_ELABORACION">En elaboración</option>
             </select>
           </div>
 
@@ -218,7 +232,7 @@ function AdminReports() {
                 >
                   👁️ Ver Detalle
                 </button>
-                {report.status === 'submitted' && (
+                {isReviewable(report.status) && (
                   <>
                     <button 
                       className="btn btn-success"
@@ -289,22 +303,18 @@ function AdminReports() {
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
                 Cancelar
               </button>
-              {selectedReport.status === 'submitted' && (
-                <>
-                  <button 
-                    className="btn btn-success"
-                    onClick={() => handleApprove(selectedReport.id)}
-                  >
-                    ✓ Aprobar
-                  </button>
-                  <button 
-                    className="btn btn-danger"
-                    onClick={() => handleReject(selectedReport.id)}
-                  >
-                    ✕ Rechazar
-                  </button>
-                </>
-              )}
+              <button 
+                className="btn btn-success"
+                onClick={() => handleApprove(selectedReport.id)}
+              >
+                ✓ Aprobar
+              </button>
+              <button 
+                className="btn btn-danger"
+                onClick={() => handleReject(selectedReport.id)}
+              >
+                ✕ Rechazar / Observaciones
+              </button>
             </div>
           </div>
         </div>

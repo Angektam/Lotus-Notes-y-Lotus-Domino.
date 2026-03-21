@@ -228,7 +228,8 @@ exports.exportReportsToExcel = async (req, res) => {
 
     // Construir filtros
     const where = {};
-    
+
+    // Filtro por rol (roles en minúsculas según el modelo User)
     if (userRole === 'supervisor') {
       where.assignedBy = userId;
     } else if (userRole === 'brigadista') {

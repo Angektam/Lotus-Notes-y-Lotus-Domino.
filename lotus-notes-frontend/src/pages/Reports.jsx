@@ -4,6 +4,11 @@ import './Reports.css';
 
 function Reports() {
   const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingReport, setEditingReport] = useState(null);
   const [formData, setFormData] = useState({
@@ -28,26 +33,17 @@ function Reports() {
   }, []);
 
   const fetchReports = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.warn('No hay token de autenticación');
-      return;
-    }
-
+    setLoading(true);
+    setError('');
     try {
-      const response = await axios.get('/reports', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await axios.get('/reports');
       setReports(response.data.data || []);
-    } catch (error) {
-      if (error.response?.status === 401) {
-        console.error('Sesión expirada');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-      } else {
-        console.error('Error al cargar informes:', error);
+    } catch (err) {
+      if (err.response?.status !== 401) {
+        setError('No se pudieron cargar los informes. Intenta de nuevo.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -98,50 +94,43 @@ function Reports() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validaciones adicionales
-    if (formData.totalHours < 0) {
-      alert('Las horas no pueden ser negativas');
-      return;
-    }
+    setFormError('');
 
+    if (!formData.studentName.trim()) { setFormError('El nombre del estudiante es obligatorio'); return; }
+    if (!formData.academicUnit.trim()) { setFormError('La unidad académica es obligatoria'); return; }
+    if (!formData.career.trim()) { setFormError('La carrera es obligatoria'); return; }
+    if (!formData.accountNumber.trim()) { setFormError('El número de cuenta es obligatorio'); return; }
+    if (!formData.dependencyName.trim()) { setFormError('El nombre de la dependencia es obligatorio'); return; }
+    if (!formData.projectName.trim()) { setFormError('El nombre del proyecto es obligatorio'); return; }
+    if (!formData.startDate) { setFormError('La fecha de inicio es obligatoria'); return; }
+    if (!formData.endDate) { setFormError('La fecha de fin es obligatoria'); return; }
+    if (Number(formData.totalHours) < 0) { setFormError('Las horas no pueden ser negativas'); return; }
     if (new Date(formData.endDate) < new Date(formData.startDate)) {
-      alert('La fecha de fin no puede ser anterior a la fecha de inicio');
-      return;
+      setFormError('La fecha de fin no puede ser anterior a la fecha de inicio'); return;
     }
+    if (!formData.reportMonth.trim()) { setFormError('El mes del informe es obligatorio'); return; }
+    if (!formData.reportYear || formData.reportYear < 2000) { setFormError('El año del informe es inválido'); return; }
+    if (formData.objectives.some(o => !o.objective.trim())) { setFormError('Todos los objetivos deben tener descripción'); return; }
+    if (formData.participants.some(p => !p.activity.trim())) { setFormError('Todas las actividades de participantes deben tener descripción'); return; }
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
-      window.location.href = '/login';
-      return;
-    }
-
+    setSubmitting(true);
     try {
       if (editingReport) {
-        await axios.put(`/reports/${editingReport.id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        alert('Informe actualizado exitosamente');
+        await axios.put(`/reports/${editingReport.id}`, formData);
+        setSuccessMsg('Informe actualizado exitosamente');
       } else {
-        await axios.post('/reports', formData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        alert('Informe creado exitosamente');
+        await axios.post('/reports', formData);
+        setSuccessMsg('Informe creado exitosamente');
       }
-      
+      setTimeout(() => setSuccessMsg(''), 4000);
       setShowForm(false);
       setEditingReport(null);
       resetForm();
       fetchReports();
-    } catch (error) {
-      console.error('Error al guardar informe:', error);
-      if (error.response?.status === 401) {
-        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
-        window.location.href = '/login';
-      } else {
-        alert(error.response?.data?.message || 'Error al guardar el informe');
-      }
+    } catch (err) {
+      setFormError(err.response?.data?.message || err.response?.data?.error || 'Error al guardar el informe');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -167,18 +156,14 @@ function Reports() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este informe?')) return;
-    
+    if (!window.confirm('¿Estás seguro de eliminar este informe?')) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/reports/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert('Informe eliminado exitosamente');
+      await axios.delete(`/reports/${id}`);
+      setSuccessMsg('Informe eliminado exitosamente');
+      setTimeout(() => setSuccessMsg(''), 4000);
       fetchReports();
-    } catch (error) {
-      console.error('Error al eliminar informe:', error);
-      alert('Error al eliminar el informe');
+    } catch (err) {
+      setError(err.response?.data?.message || err.response?.data?.error || 'Error al eliminar el informe');
     }
   };
 
@@ -221,11 +206,25 @@ function Reports() {
             setShowForm(true);
             setEditingReport(null);
             resetForm();
+            setFormError('');
           }}
         >
           + Nuevo Informe
         </button>
       </div>
+
+      {error && (
+        <div className="error-message" style={{ marginBottom: '16px' }}>
+          {error}
+          <button onClick={() => setError('')} style={{ marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="success-message" style={{ marginBottom: '16px' }}>
+          {successMsg}
+        </div>
+      )}
 
       {showForm && (
         <div className="report-form-modal">
@@ -234,6 +233,10 @@ function Reports() {
               <h2>{editingReport ? 'Editar Informe' : 'Nuevo Informe Mensual'}</h2>
               <button className="btn-close" onClick={() => setShowForm(false)}>✕</button>
             </div>
+
+            {formError && (
+              <div className="error-message" style={{ margin: '0 0 16px' }}>{formError}</div>
+            )}
 
             <form onSubmit={handleSubmit}>
               {/* I. Datos del Estudiante y Dependencia */}
@@ -398,8 +401,8 @@ function Reports() {
                 <button type="button" className="btn-cancel" onClick={() => setShowForm(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn-save">
-                  {editingReport ? 'Actualizar' : 'Guardar'} Informe
+                <button type="submit" className="btn-save" disabled={submitting}>
+                  {submitting ? 'Guardando...' : (editingReport ? 'Actualizar' : 'Guardar')} Informe
                 </button>
               </div>
             </form>
@@ -408,7 +411,11 @@ function Reports() {
       )}
 
       <div className="reports-list">
-        {reports.length === 0 ? (
+        {loading ? (
+          <div className="empty-state">
+            <p>Cargando informes...</p>
+          </div>
+        ) : reports.length === 0 ? (
           <div className="empty-state">
             <p>No hay informes registrados</p>
             <p>Crea tu primer informe mensual</p>

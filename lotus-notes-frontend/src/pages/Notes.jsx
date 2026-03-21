@@ -1,23 +1,20 @@
 import { useState, useEffect } from 'react'
 import api from '../api/axios'
 
+const PRIORITY_LABELS = { low: 'Baja', medium: 'Media', high: 'Alta', urgent: 'Urgente' }
+const emptyForm = { title: '', content: '', category: '', priority: 'medium', isPublic: false }
+
 function Notes() {
   const [notes, setNotes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [formError, setFormError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    category: '',
-    priority: 'medium',
-    isPublic: false
-  })
+  const [editingNote, setEditingNote] = useState(null)
+  const [formData, setFormData] = useState(emptyForm)
+  const [filters, setFilters] = useState({ priority: 'all', category: '' })
 
-  useEffect(() => {
-    loadNotes()
-  }, [])
+  useEffect(() => { loadNotes() }, [])
 
   const loadNotes = async () => {
     setLoading(true)
@@ -26,38 +23,42 @@ function Notes() {
       const response = await api.get('/notes')
       setNotes(response.data.notes || [])
     } catch (err) {
-      if (err.response?.status !== 401) {
-        setError('No se pudieron cargar las notas. Intenta de nuevo.')
-      }
+      if (err.response?.status !== 401) setError('No se pudieron cargar las notas.')
     } finally {
       setLoading(false)
     }
   }
 
+  const openCreate = () => {
+    setEditingNote(null)
+    setFormData(emptyForm)
+    setFormError('')
+    setShowForm(true)
+  }
+
+  const openEdit = (note) => {
+    setEditingNote(note)
+    setFormData({ title: note.title, content: note.content, category: note.category || '', priority: note.priority, isPublic: note.isPublic || false })
+    setFormError('')
+    setShowForm(true)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFormError('')
-
-    if (!formData.title.trim()) {
-      setFormError('El título es obligatorio')
-      return
-    }
-    if (!formData.content.trim()) {
-      setFormError('El contenido es obligatorio')
-      return
-    }
-    if (formData.title.length > 200) {
-      setFormError('El título no puede exceder 200 caracteres')
-      return
-    }
-
+    if (!formData.title.trim()) { setFormError('El título es obligatorio'); return }
+    if (!formData.content.trim()) { setFormError('El contenido es obligatorio'); return }
+    if (formData.title.length > 200) { setFormError('El título no puede exceder 200 caracteres'); return }
     try {
-      await api.post('/notes', formData)
-      setFormData({ title: '', content: '', category: '', priority: 'medium', isPublic: false })
+      if (editingNote) {
+        await api.put(`/notes/${editingNote.id}`, formData)
+      } else {
+        await api.post('/notes', formData)
+      }
       setShowForm(false)
       loadNotes()
     } catch (err) {
-      setFormError(err.response?.data?.error || err.response?.data?.message || 'Error al crear la nota')
+      setFormError(err.response?.data?.error || err.response?.data?.message || 'Error al guardar la nota')
     }
   }
 
@@ -71,13 +72,19 @@ function Notes() {
     }
   }
 
+  const categories = [...new Set(notes.map(n => n.category).filter(Boolean))]
+
+  const filtered = notes.filter(n => {
+    if (filters.priority !== 'all' && n.priority !== filters.priority) return false
+    if (filters.category && n.category !== filters.category) return false
+    return true
+  })
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 style={{ color: '#333' }}>Mis Notas</h1>
-        <button className="btn btn-success" onClick={() => { setShowForm(!showForm); setFormError('') }}>
-          {showForm ? 'Cancelar' : '+ Nueva Nota'}
-        </button>
+        <button className="btn btn-success" onClick={openCreate}>+ Nueva Nota</button>
       </div>
 
       {error && (
@@ -87,53 +94,33 @@ function Notes() {
         </div>
       )}
 
-      {showForm && (
-        <div className="card">
-          <h3>Crear Nueva Nota</h3>
-          {formError && <div className="error-message" style={{ marginBottom: '12px' }}>{formError}</div>}
-          <form onSubmit={handleSubmit}>
-            <input
-              type="text"
-              placeholder="Título *"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              required
-            />
-            <textarea
-              placeholder="Contenido *"
-              rows="5"
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              required
-            />
-            <input
-              type="text"
-              placeholder="Categoría"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            />
-            <select
-              value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-            >
+      {/* Filtros */}
+      <div className="card" style={{ marginBottom: '16px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div>
+            <label style={{ fontSize: '13px', color: '#718096', display: 'block', marginBottom: '4px' }}>Prioridad</label>
+            <select value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })} style={{ width: 'auto' }}>
+              <option value="all">Todas</option>
               <option value="low">Baja</option>
               <option value="medium">Media</option>
               <option value="high">Alta</option>
               <option value="urgent">Urgente</option>
             </select>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                checked={formData.isPublic}
-                onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
-                style={{ width: 'auto' }}
-              />
-              Nota pública
-            </label>
-            <button type="submit" className="btn btn-primary">Guardar Nota</button>
-          </form>
+          </div>
+          {categories.length > 0 && (
+            <div>
+              <label style={{ fontSize: '13px', color: '#718096', display: 'block', marginBottom: '4px' }}>Categoría</label>
+              <select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} style={{ width: 'auto' }}>
+                <option value="">Todas</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
+          <span style={{ fontSize: '13px', color: '#718096', marginTop: '18px' }}>
+            {filtered.length} de {notes.length} notas
+          </span>
         </div>
-      )}
+      </div>
 
       {loading ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
@@ -142,32 +129,78 @@ function Notes() {
       ) : (
         <>
           <div className="grid grid-2">
-            {notes.map((note) => (
+            {filtered.map((note) => (
               <div key={note.id} className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
                   <h3>{note.title}</h3>
-                  <span className={`badge badge-${note.priority}`}>{note.priority}</span>
+                  <span className={`badge badge-${note.priority}`}>{PRIORITY_LABELS[note.priority] || note.priority}</span>
                 </div>
-                <p style={{ color: '#4a5568', marginBottom: '12px' }}>{note.content}</p>
-                {note.category && (
-                  <span style={{ fontSize: '12px', color: '#718096' }}>{note.category}</span>
-                )}
-                <div style={{ marginTop: '16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button className="btn btn-danger" onClick={() => deleteNote(note.id)}>
-                    Eliminar
-                  </button>
-                  {note.isPublic && <span style={{ fontSize: '12px', color: '#28a745' }}>🌐 Pública</span>}
+                <p style={{ color: '#4a5568', marginBottom: '12px', whiteSpace: 'pre-wrap' }}>{note.content}</p>
+                {note.category && <span style={{ fontSize: '12px', color: '#718096', display: 'block', marginBottom: '8px' }}>📁 {note.category}</span>}
+                {note.isPublic && <span style={{ fontSize: '12px', color: '#28a745', display: 'block', marginBottom: '8px' }}>🌐 Pública</span>}
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-outline" onClick={() => openEdit(note)}>✏️ Editar</button>
+                  <button className="btn btn-danger" onClick={() => deleteNote(note.id)}>🗑️ Eliminar</button>
                 </div>
               </div>
             ))}
           </div>
-
-          {notes.length === 0 && !showForm && (
+          {filtered.length === 0 && (
             <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
-              <p style={{ fontSize: '18px', color: '#718096' }}>No tienes notas aún. ¡Crea tu primera nota!</p>
+              <p style={{ fontSize: '18px', color: '#718096' }}>No hay notas para mostrar.</p>
             </div>
           )}
         </>
+      )}
+
+      {/* Modal crear/editar */}
+      {showForm && (
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingNote ? 'Editar Nota' : 'Nueva Nota'}</h2>
+              <button className="btn-close" onClick={() => setShowForm(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {formError && <div className="error-message" style={{ marginBottom: '12px' }}>{formError}</div>}
+              <form onSubmit={handleSubmit}>
+                <div className="review-section">
+                  <label>Título *</label>
+                  <input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required />
+                </div>
+                <div className="review-section">
+                  <label>Contenido *</label>
+                  <textarea rows="5" value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })} required />
+                </div>
+                <div className="grid grid-2">
+                  <div className="review-section">
+                    <label>Categoría</label>
+                    <input value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} placeholder="Ej. Trabajo, Personal..." />
+                  </div>
+                  <div className="review-section">
+                    <label>Prioridad</label>
+                    <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
+                      <option value="low">Baja</option>
+                      <option value="medium">Media</option>
+                      <option value="high">Alta</option>
+                      <option value="urgent">Urgente</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="review-section">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={formData.isPublic} onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })} style={{ width: 'auto' }} />
+                    Nota pública (visible para otros usuarios)
+                  </label>
+                </div>
+                <div className="modal-footer" style={{ padding: '16px 0 0' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary">{editingNote ? 'Guardar cambios' : 'Crear Nota'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -1,5 +1,41 @@
 const { Report, User, Notification, Attachment } = require('../models');
 const { Op } = require('sequelize');
+const { createAndSendNotification } = require('../utils/notificationHelper');
+
+// Crear reporte propio (brigadista)
+exports.createReport = async (req, res) => {
+  try {
+    const { title, description, dueDate, periodStart, periodEnd } = req.body;
+
+    if (!title || !dueDate) {
+      return res.status(400).json({ success: false, message: 'Título y fecha límite son obligatorios' });
+    }
+
+    const report = await Report.create({
+      assignedTo: req.user.id,
+      assignedBy: req.user.id,
+      assignedDate: new Date(),
+      dueDate,
+      title,
+      description: description || '',
+      periodStart: periodStart || null,
+      periodEnd: periodEnd || null,
+      status: 'EN_ELABORACION',
+      brigadistaInfo: {
+        name: req.user.fullName,
+        zone: req.user.brigadistaProfile?.zone || '',
+        team: req.user.brigadistaProfile?.team || ''
+      },
+      workflowHistory: [{ state: 'EN_ELABORACION', date: new Date(), by: req.user.id, comments: 'Reporte creado por brigadista' }],
+      auditTrail: [{ action: 'CREATE', by: req.user.id, date: new Date(), details: 'Reporte creado por brigadista' }]
+    });
+
+    res.status(201).json({ success: true, message: 'Reporte creado exitosamente', data: report });
+  } catch (error) {
+    console.error('Error al crear reporte:', error);
+    res.status(500).json({ success: false, message: 'Error al crear reporte', error: error.message });
+  }
+};
 
 // Obtener mis reportes asignados
 exports.getMyReports = async (req, res) => {
@@ -208,8 +244,8 @@ exports.submitReport = async (req, res) => {
       ]
     });
 
-    // Notificar al supervisor
-    await Notification.create({
+    // Notificar al supervisor en tiempo real
+    await createAndSendNotification({
       userId: report.assignedBy,
       type: 'REPORT_SUBMITTED',
       title: 'Reporte enviado para revisión',

@@ -12,7 +12,8 @@ function Login({ onLogin }) {
     department: ''
   })
   const [error, setError] = useState('')
-  const [loginField, setLoginField] = useState('') // Campo único para username o email
+  const [submitting, setSubmitting] = useState(false)
+  const [loginField, setLoginField] = useState('')
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -54,7 +55,6 @@ function Login({ onLogin }) {
       if (isRegister) {
         data = formData;
       } else {
-        // Determinar si es email o username
         const isEmail = loginField.includes('@');
         data = {
           [isEmail ? 'email' : 'username']: loginField,
@@ -62,6 +62,7 @@ function Login({ onLogin }) {
         };
       }
       
+      setSubmitting(true);
       const response = await api.post(endpoint, data);
       
       localStorage.setItem('token', response.data.token);
@@ -78,6 +79,8 @@ function Login({ onLogin }) {
       } else {
         setError(err.response?.data?.error || err.response?.data?.message || 'Error de autenticación');
       }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -145,8 +148,8 @@ function Login({ onLogin }) {
             required
           />
           
-          <button type="submit" className="btn btn-primary btn-block">
-            {isRegister ? 'Registrarse' : 'Iniciar Sesión'}
+          <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+            {submitting ? 'Cargando...' : (isRegister ? 'Registrarse' : 'Iniciar Sesión')}
           </button>
         </form>
         

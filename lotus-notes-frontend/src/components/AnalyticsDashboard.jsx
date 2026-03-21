@@ -19,7 +19,7 @@ const AnalyticsDashboard = ({ userRole }) => {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const endpoint = userRole === 'SUPERVISOR' ? '/api/analytics/supervisor' : '/api/analytics/brigadista';
+      const endpoint = userRole === 'supervisor' ? '/analytics/supervisor' : '/analytics/brigadista';
       const params = {};
       if (dateRange.startDate && dateRange.endDate) {
         params.startDate = dateRange.startDate;
@@ -43,7 +43,7 @@ const AnalyticsDashboard = ({ userRole }) => {
         params.endDate = dateRange.endDate;
       }
 
-      const response = await axios.get('/api/analytics/export/excel', {
+      const response = await axios.get('/analytics/export/excel', {
         params,
         responseType: 'blob'
       });
@@ -97,7 +97,7 @@ const AnalyticsDashboard = ({ userRole }) => {
   };
 
   // Datos para gráfica de brigadistas (solo supervisor)
-  const brigadistaChartData = userRole === 'SUPERVISOR' && analytics.reportsByBrigadista ? {
+  const brigadistaChartData = userRole === 'supervisor' && analytics.reportsByBrigadista ? {
     labels: analytics.reportsByBrigadista.map(b => b.brigadistaName),
     datasets: [{
       label: 'Reportes por Brigadista',
@@ -109,7 +109,7 @@ const AnalyticsDashboard = ({ userRole }) => {
   } : null;
 
   // Datos para tendencia mensual (solo supervisor)
-  const trendChartData = userRole === 'SUPERVISOR' && analytics.monthlyTrend ? {
+  const trendChartData = userRole === 'supervisor' && analytics.monthlyTrend ? {
     labels: analytics.monthlyTrend.map(m => m.month),
     datasets: [{
       label: 'Reportes por Mes',
@@ -157,7 +157,7 @@ const AnalyticsDashboard = ({ userRole }) => {
           </div>
         </div>
 
-        {userRole === 'SUPERVISOR' ? (
+        {userRole === 'supervisor' ? (
           <>
             <div className="stat-card success">
               <div className="stat-icon">✅</div>
@@ -229,14 +229,14 @@ const AnalyticsDashboard = ({ userRole }) => {
           <Pie data={statusChartData} options={{ responsive: true, maintainAspectRatio: true }} />
         </div>
 
-        {userRole === 'SUPERVISOR' && brigadistaChartData && (
+        {userRole === 'supervisor' && brigadistaChartData && (
           <div className="chart-container">
             <h3>Reportes por Brigadista</h3>
             <Bar data={brigadistaChartData} options={{ responsive: true, maintainAspectRatio: true }} />
           </div>
         )}
 
-        {userRole === 'SUPERVISOR' && trendChartData && (
+        {userRole === 'supervisor' && trendChartData && (
           <div className="chart-container full-width">
             <h3>Tendencia Mensual</h3>
             <Line data={trendChartData} options={{ responsive: true, maintainAspectRatio: true }} />

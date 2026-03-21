@@ -98,6 +98,23 @@ function SupervisorDashboard() {
               <h3>Revisar pendientes</h3>
               <p>{stats.pendingReview} por revisar</p>
             </Link>
+            <Link to="/tasks" className="action-card">
+              <div className="action-icon">✅</div>
+              <h3>Tareas</h3>
+              <p>Gestiona tus tareas</p>
+            </Link>
+            <Link to="/messages" className="action-card">
+              <div className="action-icon">💬</div>
+              <h3>Mensajes</h3>
+              <p>Bandeja de entrada</p>
+            </Link>
+            {stats.overdue > 0 && (
+              <Link to="/supervisor/pending" className="action-card" style={{ borderColor: '#e74c3c' }}>
+                <div className="action-icon">⚠️</div>
+                <h3 style={{ color: '#e74c3c' }}>Vencidos</h3>
+                <p>{stats.overdue} reporte{stats.overdue !== 1 ? 's' : ''} vencido{stats.overdue !== 1 ? 's' : ''}</p>
+              </Link>
+            )}
           </div>
         </div>
 

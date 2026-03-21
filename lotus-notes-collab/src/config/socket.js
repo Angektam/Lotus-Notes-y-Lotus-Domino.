@@ -1,5 +1,6 @@
 // Configuración de Socket.io para notificaciones en tiempo real
 const socketIO = require('socket.io');
+const jwt = require('jsonwebtoken');
 
 let io;
 const userSockets = new Map(); // Map userId -> socketId
@@ -7,20 +8,26 @@ const userSockets = new Map(); // Map userId -> socketId
 const initializeSocket = (server) => {
   io = socketIO(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(o => o.trim()),
       methods: ['GET', 'POST'],
       credentials: true
     }
   });
 
   io.on('connection', (socket) => {
-    console.log('🔌 Cliente conectado:', socket.id);
-
-    // Autenticar usuario
-    socket.on('authenticate', (userId) => {
-      userSockets.set(userId, socket.id);
-      socket.userId = userId;
-      console.log(`✅ Usuario ${userId} autenticado con socket ${socket.id}`);
+    // Autenticar usuario via token JWT
+    socket.on('authenticate', (token) => {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.id;
+        userSockets.set(userId, socket.id);
+        socket.userId = userId;
+        socket.emit('authenticated', { success: true });
+        console.log(`✅ Socket autenticado: usuario ${userId}`);
+      } catch (err) {
+        socket.emit('authenticated', { success: false, error: 'Token inválido' });
+        console.warn(`⚠️ Socket auth fallida: ${err.message}`);
+      }
     });
 
     // Desconexión

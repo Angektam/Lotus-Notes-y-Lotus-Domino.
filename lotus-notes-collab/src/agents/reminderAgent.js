@@ -1,5 +1,6 @@
 const { Report, User, Notification } = require('../models');
 const { Op } = require('sequelize');
+const { createAndSendNotification } = require('../utils/notificationHelper');
 
 exports.run = async () => {
   try {
@@ -27,21 +28,24 @@ exports.run = async () => {
     });
     
     for (const report of reportsDueSoon) {
-      const daysRemaining = Math.ceil(
-        (report.dueDate - today) / (1000 * 60 * 60 * 24)
-      );
-      
-      // Crear notificación en la app
-      await Notification.create({
-        userId: report.assignedTo,
-        type: 'REMINDER',
-        title: 'Recordatorio de entrega',
-        message: `El reporte "${report.title}" vence en ${daysRemaining} día(s)`,
-        relatedReportId: report.id,
-        priority: daysRemaining <= 1 ? 'HIGH' : 'MEDIUM'
-      });
-      
-      console.log(`[Agente Recordatorios] Notificación enviada a ${report.brigadista.fullName}`);
+      try {
+        const daysRemaining = Math.ceil(
+          (report.dueDate - today) / (1000 * 60 * 60 * 24)
+        );
+
+        await createAndSendNotification({
+          userId: report.assignedTo,
+          type: 'REMINDER',
+          title: 'Recordatorio de entrega',
+          message: `El reporte "${report.title}" vence en ${daysRemaining} día(s)`,
+          relatedReportId: report.id,
+          priority: daysRemaining <= 1 ? 'HIGH' : 'MEDIUM'
+        });
+
+        console.log(`[Agente Recordatorios] Notificación enviada a ${report.brigadista?.fullName || report.assignedTo}`);
+      } catch (innerError) {
+        console.error(`[Agente Recordatorios] Error procesando reporte ${report.id}:`, innerError.message);
+      }
     }
     
     console.log(`[Agente Recordatorios] Completado. ${reportsDueSoon.length} recordatorios enviados.`);

@@ -269,3 +269,119 @@
   top: 0;
   z-index: 100;
 }
+
+/* =============================================
+   TEMA BRIGADISTA — verde militar / naranja
+   ============================================= */
+.theme-brigadista {
+  --primary-color: #e67e22;
+  --primary-dark: #ca6f1e;
+  --primary-light: #fdebd0;
+  --secondary-color: #27ae60;
+  --danger-color: #c0392b;
+  --warning-color: #f39c12;
+  --bg-secondary: #fdf6ee;
+}
+
+.theme-brigadista .sidebar {
+  background: linear-gradient(180deg, #2d4a1e 0%, #1e3212 100%);
+}
+
+.theme-brigadista .logo {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.theme-brigadista .avatar {
+  background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);
+}
+
+.theme-brigadista .nav-menu a::before {
+  background: #e67e22;
+}
+
+.theme-brigadista .nav-menu a.active {
+  background: rgba(230, 126, 34, 0.18);
+  border-left-color: #e67e22;
+}
+
+.theme-brigadista .nav-menu a:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.theme-brigadista .main-content {
+  background: #fdf6ee;
+}
+
+.theme-brigadista .top-bar {
+  border-bottom: 2px solid #e67e22;
+}
+
+.theme-brigadista input:focus,
+.theme-brigadista textarea:focus,
+.theme-brigadista select:focus {
+  border-color: #e67e22;
+  box-shadow: 0 0 0 3px #fdebd0;
+}
+
+.theme-brigadista .btn-primary {
+  background: #e67e22;
+}
+
+.theme-brigadista .btn-primary:hover:not(:disabled) {
+  background: #ca6f1e;
+}
+
+.theme-brigadista .btn-success {
+  background: #27ae60;
+}
+
+/* =============================================
+   TEMA SUPERVISOR — azul oscuro / índigo
+   ============================================= */
+.theme-supervisor {
+  --primary-color: #5c6bc0;
+  --primary-dark: #3949ab;
+  --primary-light: #e8eaf6;
+  --secondary-color: #26a69a;
+  --bg-secondary: #f3f4fb;
+}
+
+.theme-supervisor .sidebar {
+  background: linear-gradient(180deg, #1a237e 0%, #0d1757 100%);
+}
+
+.theme-supervisor .avatar {
+  background: linear-gradient(135deg, #5c6bc0 0%, #7986cb 100%);
+}
+
+.theme-supervisor .nav-menu a::before {
+  background: #7986cb;
+}
+
+.theme-supervisor .nav-menu a.active {
+  background: rgba(121, 134, 203, 0.18);
+  border-left-color: #7986cb;
+}
+
+.theme-supervisor .main-content {
+  background: #f3f4fb;
+}
+
+.theme-supervisor .top-bar {
+  border-bottom: 2px solid #5c6bc0;
+}
+
+.theme-supervisor input:focus,
+.theme-supervisor textarea:focus,
+.theme-supervisor select:focus {
+  border-color: #5c6bc0;
+  box-shadow: 0 0 0 3px #e8eaf6;
+}
+
+.theme-supervisor .btn-primary {
+  background: #5c6bc0;
+}
+
+.theme-supervisor .btn-primary:hover:not(:disabled) {
+  background: #3949ab;
+}

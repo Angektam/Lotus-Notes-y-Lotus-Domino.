@@ -33,6 +33,7 @@ const upload = multer({
 });
 
 // Gestión de reportes
+router.post('/reports', authenticate, checkRole('brigadista', 'admin'), brigadistaController.createReport);
 router.get('/reports', authenticate, checkRole('brigadista', 'admin'), brigadistaController.getMyReports);
 router.get('/reports/:id', authenticate, checkRole('brigadista', 'admin'), brigadistaController.getReportById);
 router.put('/reports/:id', authenticate, checkRole('brigadista', 'admin'), brigadistaController.updateReport);

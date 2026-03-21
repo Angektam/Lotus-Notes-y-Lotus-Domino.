@@ -3,7 +3,14 @@ const { Note, User } = require('../models');
 exports.createNote = async (req, res) => {
   try {
     const { title, content, category, priority, isPublic, tags } = req.body;
-    
+
+    if (!title || !title.trim()) return res.status(400).json({ error: 'El título es obligatorio' });
+    if (title.trim().length > 200) return res.status(400).json({ error: 'El título no puede exceder 200 caracteres' });
+    if (!content || !content.trim()) return res.status(400).json({ error: 'El contenido es obligatorio' });
+    if (category && category.length > 50) return res.status(400).json({ error: 'La categoría no puede exceder 50 caracteres' });
+    const validPriorities = ['low', 'medium', 'high', 'urgent'];
+    if (priority && !validPriorities.includes(priority)) return res.status(400).json({ error: 'Prioridad inválida' });
+
     const note = await Note.create({
       title,
       content,
@@ -22,13 +29,31 @@ exports.createNote = async (req, res) => {
 
 exports.getNotes = async (req, res) => {
   try {
-    const notes = await Note.findAll({
-      where: { userId: req.user.id },
+    const { category, priority, page = 1, limit = 20 } = req.query;
+    const where = { userId: req.user.id };
+
+    if (category) where.category = category;
+    if (priority) where.priority = priority;
+
+    const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
+
+    const { count, rows: notes } = await Note.findAndCountAll({
+      where,
       include: [{ model: User, as: 'author', attributes: ['id', 'username', 'fullName'] }],
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset
     });
 
-    res.json({ notes });
+    res.json({
+      notes,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / parseInt(limit))
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

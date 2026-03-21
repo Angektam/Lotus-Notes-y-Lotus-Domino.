@@ -1,31 +1,40 @@
 const { Report, User } = require('../models');
+const { REPORT_STATUS } = require('../utils/reportStatus');
 
-// Obtener todos los informes (admin)
+// Obtener todos los informes (admin) con paginación
 exports.getAllReports = async (req, res) => {
   try {
-    const { status, month, year, studentId } = req.query;
+    const { status, month, year, studentId, page = 1, limit = 20 } = req.query;
     
     const whereClause = {};
-    
     if (status) whereClause.status = status;
     if (month) whereClause.reportMonth = month;
     if (year) whereClause.reportYear = year;
-    if (studentId) whereClause.userId = studentId;
+    if (studentId) whereClause.assignedTo = studentId;
 
-    const reports = await Report.findAll({
+    const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
+
+    const { count, rows: reports } = await Report.findAndCountAll({
       where: whereClause,
       include: [{
         model: User,
         as: 'brigadista',
         attributes: ['id', 'username', 'email', 'fullName', 'department']
       }],
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset
     });
 
     res.json({
       success: true,
       data: reports,
-      total: reports.length
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / parseInt(limit))
+      }
     });
   } catch (error) {
     console.error('Error al obtener informes:', error);
@@ -103,31 +112,27 @@ exports.approveReport = async (req, res) => {
     const report = await Report.findByPk(id);
 
     if (!report) {
-      return res.status(404).json({
-        success: false,
-        message: 'Informe no encontrado'
-      });
+      return res.status(404).json({ success: false, message: 'Informe no encontrado' });
     }
 
+    // Detectar flujo: brigadista usa estados en mayúsculas
+    const isBrigadistaFlow = ['ASIGNADO','EN_ELABORACION','ENVIADO','EN_REVISION','OBSERVADO','APROBADO'].includes(report.status);
+    const newStatus = isBrigadistaFlow ? REPORT_STATUS.APROBADO : REPORT_STATUS.APPROVED;
+
     await report.update({
-      status: 'approved',
+      status: newStatus,
       reviewedBy: req.user.id,
       reviewedAt: new Date(),
-      reviewComments: comments
+      reviewComments: comments,
+      workflowHistory: isBrigadistaFlow
+        ? [...(report.workflowHistory || []), { state: newStatus, date: new Date(), by: req.user.id, comments: comments || 'Aprobado por admin' }]
+        : report.workflowHistory
     });
 
-    res.json({
-      success: true,
-      message: 'Informe aprobado exitosamente',
-      data: report
-    });
+    res.json({ success: true, message: 'Informe aprobado exitosamente', data: report });
   } catch (error) {
     console.error('Error al aprobar informe:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al aprobar el informe',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al aprobar el informe', error: error.message });
   }
 };
 
@@ -138,40 +143,32 @@ exports.rejectReport = async (req, res) => {
     const { comments } = req.body;
 
     if (!comments) {
-      return res.status(400).json({
-        success: false,
-        message: 'Debes proporcionar comentarios al rechazar un informe'
-      });
+      return res.status(400).json({ success: false, message: 'Debes proporcionar comentarios al rechazar un informe' });
     }
 
     const report = await Report.findByPk(id);
 
     if (!report) {
-      return res.status(404).json({
-        success: false,
-        message: 'Informe no encontrado'
-      });
+      return res.status(404).json({ success: false, message: 'Informe no encontrado' });
     }
 
+    const isBrigadistaFlow = ['ASIGNADO','EN_ELABORACION','ENVIADO','EN_REVISION','OBSERVADO','APROBADO'].includes(report.status);
+    const newStatus = isBrigadistaFlow ? REPORT_STATUS.OBSERVADO : REPORT_STATUS.REJECTED;
+
     await report.update({
-      status: 'rejected',
+      status: newStatus,
       reviewedBy: req.user.id,
       reviewedAt: new Date(),
-      reviewComments: comments
+      reviewComments: comments,
+      workflowHistory: isBrigadistaFlow
+        ? [...(report.workflowHistory || []), { state: newStatus, date: new Date(), by: req.user.id, comments }]
+        : report.workflowHistory
     });
 
-    res.json({
-      success: true,
-      message: 'Informe rechazado',
-      data: report
-    });
+    res.json({ success: true, message: 'Informe rechazado con observaciones', data: report });
   } catch (error) {
     console.error('Error al rechazar informe:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al rechazar el informe',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al rechazar el informe', error: error.message });
   }
 };
 
@@ -195,8 +192,8 @@ exports.getAllStudents = async (req, res) => {
         stats: {
           totalReports: reports.length,
           totalHours: reports.reduce((sum, r) => sum + (r.totalHours || 0), 0),
-          approved: reports.filter(r => r.status === 'approved').length,
-          pending: reports.filter(r => r.status === 'submitted').length
+          approved: reports.filter(r => r.status === REPORT_STATUS.APPROVED).length,
+          pending: reports.filter(r => r.status === REPORT_STATUS.SUBMITTED).length
         }
       };
     });

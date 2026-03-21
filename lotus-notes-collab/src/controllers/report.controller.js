@@ -1,5 +1,5 @@
 const { Report, User } = require('../models');
-const { Op } = require('sequelize');
+const { REPORT_STATUS, EDITABLE_STATUSES, DELETABLE_STATUSES } = require('../utils/reportStatus');
 
 // Crear nuevo informe (flujo estudiante/legacy)
 exports.createReport = async (req, res) => {
@@ -21,16 +21,33 @@ exports.createReport = async (req, res) => {
       reportYear
     } = req.body;
 
-    // Validaciones básicas
-    if (!studentName || !studentName.trim()) {
+    // Validaciones completas
+    if (!studentName || !studentName.trim())
       return res.status(400).json({ success: false, message: 'El nombre del estudiante es requerido' });
-    }
-    if (totalHours !== undefined && (isNaN(totalHours) || Number(totalHours) < 0)) {
+    if (!academicUnit || !academicUnit.trim())
+      return res.status(400).json({ success: false, message: 'La unidad académica es requerida' });
+    if (!career || !career.trim())
+      return res.status(400).json({ success: false, message: 'La carrera es requerida' });
+    if (!accountNumber || !accountNumber.trim())
+      return res.status(400).json({ success: false, message: 'El número de cuenta es requerido' });
+    if (!dependencyName || !dependencyName.trim())
+      return res.status(400).json({ success: false, message: 'El nombre de la dependencia es requerido' });
+    if (!projectName || !projectName.trim())
+      return res.status(400).json({ success: false, message: 'El nombre del proyecto es requerido' });
+    if (!startDate) return res.status(400).json({ success: false, message: 'La fecha de inicio es requerida' });
+    if (!endDate) return res.status(400).json({ success: false, message: 'La fecha de fin es requerida' });
+    if (totalHours !== undefined && (isNaN(totalHours) || Number(totalHours) < 0))
       return res.status(400).json({ success: false, message: 'Las horas totales deben ser un número positivo' });
-    }
-    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+    if (startDate && endDate && new Date(endDate) < new Date(startDate))
       return res.status(400).json({ success: false, message: 'La fecha de fin no puede ser anterior a la fecha de inicio' });
-    }
+    if (!reportMonth || !reportMonth.trim())
+      return res.status(400).json({ success: false, message: 'El mes del informe es requerido' });
+    if (!reportYear || isNaN(reportYear) || reportYear < 2000 || reportYear > 2100)
+      return res.status(400).json({ success: false, message: 'El año del informe es inválido' });
+    if (!objectives || !Array.isArray(objectives) || objectives.length === 0)
+      return res.status(400).json({ success: false, message: 'Debes agregar al menos un objetivo' });
+    if (!participants || !Array.isArray(participants) || participants.length === 0)
+      return res.status(400).json({ success: false, message: 'Debes agregar al menos un participante' });
 
     const report = await Report.create({
       // En el flujo legacy, el estudiante es tanto assignedTo como assignedBy
@@ -52,7 +69,7 @@ exports.createReport = async (req, res) => {
       observations: observations?.trim(),
       reportMonth,
       reportYear,
-      status: 'draft'
+      status: REPORT_STATUS.DRAFT
     });
 
     res.status(201).json({
@@ -70,22 +87,37 @@ exports.createReport = async (req, res) => {
   }
 };
 
-// Obtener todos los informes del usuario
+// Obtener todos los informes del usuario con paginación
 exports.getReports = async (req, res) => {
   try {
-    const reports = await Report.findAll({
-      where: { assignedTo: req.user.id },
+    const { status, page = 1, limit = 20 } = req.query;
+    const where = { assignedTo: req.user.id };
+
+    if (status) where.status = status;
+
+    const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
+
+    const { count, rows: reports } = await Report.findAndCountAll({
+      where,
       order: [['reportYear', 'DESC'], ['reportMonth', 'DESC']],
       include: [{
         model: User,
         as: 'brigadista',
         attributes: ['id', 'fullName', 'email']
-      }]
+      }],
+      limit: parseInt(limit),
+      offset
     });
 
     res.json({
       success: true,
-      data: reports
+      data: reports,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / parseInt(limit))
+      }
     });
   } catch (error) {
     console.error('Error al obtener informes:', error);
@@ -151,8 +183,7 @@ exports.updateReport = async (req, res) => {
     }
 
     // Solo se puede editar si está en estado editable
-    const editableStatuses = ['draft', 'ASIGNADO', 'EN_ELABORACION', 'OBSERVADO'];
-    if (!editableStatuses.includes(report.status)) {
+    if (!EDITABLE_STATUSES.includes(report.status)) {
       return res.status(400).json({
         success: false,
         message: 'El informe no puede ser editado en su estado actual'
@@ -210,7 +241,7 @@ exports.deleteReport = async (req, res) => {
     }
 
     // Solo se puede eliminar si está en borrador
-    if (!['draft', 'ASIGNADO'].includes(report.status)) {
+    if (!DELETABLE_STATUSES.includes(report.status)) {
       return res.status(400).json({
         success: false,
         message: 'Solo se pueden eliminar informes en estado borrador'
@@ -289,7 +320,7 @@ exports.submitReport = async (req, res) => {
       });
     }
 
-    await report.update({ status: 'submitted' });
+    await report.update({ status: REPORT_STATUS.SUBMITTED });
 
     res.json({
       success: true,

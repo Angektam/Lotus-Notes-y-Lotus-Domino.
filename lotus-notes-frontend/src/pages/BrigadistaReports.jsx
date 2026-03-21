@@ -19,6 +19,10 @@ function BrigadistaReports() {
   const [reviewComments, setReviewComments] = useState('')
   const [fileToUpload, setFileToUpload] = useState(null)
 
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [newReport, setNewReport] = useState({ title: '', description: '', dueDate: '', periodStart: '', periodEnd: '' })
+
   useEffect(() => {
     loadReports()
   }, [])
@@ -68,6 +72,24 @@ function BrigadistaReports() {
     setSelectedReport(null)
     setReviewComments('')
     setFileToUpload(null)
+  }
+
+  const createReport = async () => {
+    if (!newReport.title.trim() || !newReport.dueDate) {
+      alert('Título y fecha límite son obligatorios')
+      return
+    }
+    setCreating(true)
+    try {
+      await api.post('/brigadista/reports', newReport)
+      setShowCreateModal(false)
+      setNewReport({ title: '', description: '', dueDate: '', periodStart: '', periodEnd: '' })
+      loadReports()
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error al crear reporte')
+    } finally {
+      setCreating(false)
+    }
   }
 
   const addActivity = () => {
@@ -158,6 +180,9 @@ function BrigadistaReports() {
       <div className="page-header">
         <h1>📋 Mis reportes</h1>
         <p className="subtitle">Elabora, envía y corrige reportes asignados por tu supervisor</p>
+        <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+          + Nuevo Reporte
+        </button>
       </div>
 
       <div className="filters-card card">
@@ -231,6 +256,70 @@ function BrigadistaReports() {
           ))
         )}
       </div>
+
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Nuevo Reporte</h2>
+              <button className="btn-close" onClick={() => setShowCreateModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="review-section">
+                <label>Título *</label>
+                <input
+                  value={newReport.title}
+                  onChange={(e) => setNewReport({ ...newReport, title: e.target.value })}
+                  placeholder="Título del reporte"
+                />
+              </div>
+              <div className="review-section">
+                <label>Descripción</label>
+                <textarea
+                  value={newReport.description}
+                  onChange={(e) => setNewReport({ ...newReport, description: e.target.value })}
+                  rows="3"
+                  placeholder="Descripción del reporte..."
+                />
+              </div>
+              <div className="grid grid-2">
+                <div className="review-section">
+                  <label>Fecha límite *</label>
+                  <input
+                    type="date"
+                    value={newReport.dueDate}
+                    onChange={(e) => setNewReport({ ...newReport, dueDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-2">
+                <div className="review-section">
+                  <label>Inicio del período</label>
+                  <input
+                    type="date"
+                    value={newReport.periodStart}
+                    onChange={(e) => setNewReport({ ...newReport, periodStart: e.target.value })}
+                  />
+                </div>
+                <div className="review-section">
+                  <label>Fin del período</label>
+                  <input
+                    type="date"
+                    value={newReport.periodEnd}
+                    onChange={(e) => setNewReport({ ...newReport, periodEnd: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={createReport} disabled={creating}>
+                {creating ? 'Creando...' : 'Crear Reporte'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && selectedReport && (
         <div className="modal-overlay" onClick={closeModal}>
