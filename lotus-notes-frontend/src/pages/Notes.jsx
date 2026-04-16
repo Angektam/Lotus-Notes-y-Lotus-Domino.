@@ -12,7 +12,8 @@ function Notes() {
   const [showForm, setShowForm] = useState(false)
   const [editingNote, setEditingNote] = useState(null)
   const [formData, setFormData] = useState(emptyForm)
-  const [filters, setFilters] = useState({ priority: 'all', category: '' })
+  const [filters, setFilters] = useState({ priority: 'all', category: '', search: '' })
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   useEffect(() => { loadNotes() }, [])
 
@@ -63,12 +64,13 @@ function Notes() {
   }
 
   const deleteNote = async (id) => {
-    if (!window.confirm('¿Eliminar esta nota?')) return
     try {
       await api.delete(`/notes/${id}`)
-      loadNotes()
+      setNotes(prev => prev.filter(n => n.id !== id))
+      setConfirmDelete(null)
     } catch (err) {
       setError(err.response?.data?.error || 'Error al eliminar la nota')
+      setConfirmDelete(null)
     }
   }
 
@@ -77,6 +79,10 @@ function Notes() {
   const filtered = notes.filter(n => {
     if (filters.priority !== 'all' && n.priority !== filters.priority) return false
     if (filters.category && n.category !== filters.category) return false
+    if (filters.search) {
+      const s = filters.search.toLowerCase()
+      if (!n.title.toLowerCase().includes(s) && !n.content.toLowerCase().includes(s)) return false
+    }
     return true
   })
 
@@ -97,6 +103,11 @@ function Notes() {
       {/* Filtros */}
       <div className="card" style={{ marginBottom: '16px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label style={{ fontSize: '13px', color: '#718096', display: 'block', marginBottom: '4px' }}>Buscar</label>
+            <input type="text" placeholder="Buscar en título o contenido..." value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })} style={{ marginBottom: 0 }} />
+          </div>
           <div>
             <label style={{ fontSize: '13px', color: '#718096', display: 'block', marginBottom: '4px' }}>Prioridad</label>
             <select value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })} style={{ width: 'auto' }}>
@@ -138,9 +149,17 @@ function Notes() {
                 <p style={{ color: '#4a5568', marginBottom: '12px', whiteSpace: 'pre-wrap' }}>{note.content}</p>
                 {note.category && <span style={{ fontSize: '12px', color: '#718096', display: 'block', marginBottom: '8px' }}>📁 {note.category}</span>}
                 {note.isPublic && <span style={{ fontSize: '12px', color: '#28a745', display: 'block', marginBottom: '8px' }}>🌐 Pública</span>}
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <button className="btn btn-outline" onClick={() => openEdit(note)}>✏️ Editar</button>
-                  <button className="btn btn-danger" onClick={() => deleteNote(note.id)}>🗑️ Eliminar</button>
+                  {confirmDelete === note.id ? (
+                    <>
+                      <span style={{ fontSize: 13, color: '#ef4444' }}>¿Eliminar?</span>
+                      <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => deleteNote(note.id)}>Sí</button>
+                      <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => setConfirmDelete(null)}>No</button>
+                    </>
+                  ) : (
+                    <button className="btn btn-danger" onClick={() => setConfirmDelete(note.id)}>🗑️</button>
+                  )}
                 </div>
               </div>
             ))}

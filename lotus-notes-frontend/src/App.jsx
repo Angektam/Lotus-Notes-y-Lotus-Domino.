@@ -15,6 +15,7 @@ import Analytics from './pages/Analytics'
 import SupervisorSearch from './pages/SupervisorSearch'
 import BrigadistaDashboard from './pages/BrigadistaDashboard'
 import BrigadistaReports from './pages/BrigadistaReports'
+import BrigadistaProfile from './pages/BrigadistaProfile'
 import Notes from './pages/Notes'
 import Tasks from './pages/Tasks'
 import Calendar from './pages/Calendar'
@@ -116,7 +117,10 @@ function App() {
 
             {/* Brigadista */}
             <Route path="brigadista/reports" element={
-              <RoleRoute allow={['brigadista', 'admin']}><Reports /></RoleRoute>
+              <RoleRoute allow={['brigadista', 'admin']}><BrigadistaReports /></RoleRoute>
+            } />
+            <Route path="brigadista/profile" element={
+              <RoleRoute allow={['brigadista', 'admin']}><BrigadistaProfile /></RoleRoute>
             } />
 
             {/* Estudiante / general — redirige según rol */}

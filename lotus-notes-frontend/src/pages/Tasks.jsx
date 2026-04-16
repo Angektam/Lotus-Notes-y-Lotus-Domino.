@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import api from '../api/axios'
 
 const PRIORITY_LABELS = { low: 'Baja', medium: 'Media', high: 'Alta', urgent: 'Urgente' }
-const STATUS_LABELS = { pending: 'Pendiente', in_progress: 'En Progreso', completed: 'Completada', cancelled: 'Cancelada' }
+const PRIORITY_COLORS = { low: '#22c55e', medium: '#f59e0b', high: '#ef4444', urgent: '#7c3aed' }
 
-const emptyForm = { title: '', description: '', priority: 'medium', dueDate: '' }
+const emptyForm = { title: '', description: '', priority: 'medium', dueDate: '', assignedTo: '' }
 
 function Tasks() {
   const [tasks, setTasks] = useState([])
@@ -14,7 +14,16 @@ function Tasks() {
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [formData, setFormData] = useState(emptyForm)
-  const [filters, setFilters] = useState({ status: 'all', priority: 'all' })
+  const [filters, setFilters] = useState({ status: 'all', priority: 'all', search: '' })
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  // Asignacion a otro usuario (supervisor)
+  const [userSearch, setUserSearch] = useState('')
+  const [userResults, setUserResults] = useState([])
+  const [assignedUser, setAssignedUser] = useState(null)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const searchTimeout = useRef(null)
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+  const isSupervisor = currentUser.role === 'supervisor' || currentUser.role === 'admin' // id a eliminar
 
   useEffect(() => { loadTasks() }, [])
 
@@ -35,6 +44,9 @@ function Tasks() {
     setEditingTask(null)
     setFormData(emptyForm)
     setFormError('')
+    setUserSearch('')
+    setAssignedUser(null)
+    setUserResults([])
     setShowForm(true)
   }
 
@@ -44,10 +56,36 @@ function Tasks() {
       title: task.title,
       description: task.description || '',
       priority: task.priority,
-      dueDate: task.dueDate ? task.dueDate.split('T')[0] : ''
+      dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+      assignedTo: task.assignedTo || ''
     })
+    setAssignedUser(task.assignee || null)
+    setUserSearch(task.assignee ? (task.assignee.fullName || task.assignee.username) : '')
     setFormError('')
     setShowForm(true)
+  }
+
+  const handleUserSearch = (value) => {
+    setUserSearch(value)
+    setAssignedUser(null)
+    setFormData(prev => ({ ...prev, assignedTo: '' }))
+    clearTimeout(searchTimeout.current)
+    if (value.trim().length < 2) { setUserResults([]); return }
+    searchTimeout.current = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const res = await api.get('/auth/users/search?q=' + encodeURIComponent(value))
+        setUserResults(res.data.users || [])
+      } catch { setUserResults([]) }
+      finally { setSearchLoading(false) }
+    }, 300)
+  }
+
+  const selectUser = (user) => {
+    setAssignedUser(user)
+    setUserSearch(user.fullName || user.username)
+    setFormData(prev => ({ ...prev, assignedTo: user.id }))
+    setUserResults([])
   }
 
   const handleSubmit = async (e) => {
@@ -61,8 +99,7 @@ function Tasks() {
       if (editingTask) {
         await api.put(`/tasks/${editingTask.id}`, formData)
       } else {
-        const user = JSON.parse(localStorage.getItem('user') || '{}')
-        await api.post('/tasks', { ...formData, assignedTo: user.id })
+        await api.post('/tasks', { ...formData, assignedTo: formData.assignedTo || currentUser.id })
       }
       setShowForm(false)
       loadTasks()
@@ -81,18 +118,23 @@ function Tasks() {
   }
 
   const deleteTask = async (id) => {
-    if (!window.confirm('¿Eliminar esta tarea?')) return
     try {
       await api.delete(`/tasks/${id}`)
-      loadTasks()
+      setTasks(prev => prev.filter(t => t.id !== id))
+      setConfirmDelete(null)
     } catch (err) {
       setError(err.response?.data?.error || 'Error al eliminar la tarea')
+      setConfirmDelete(null)
     }
   }
 
   const filtered = tasks.filter(t => {
     if (filters.status !== 'all' && t.status !== filters.status) return false
     if (filters.priority !== 'all' && t.priority !== filters.priority) return false
+    if (filters.search) {
+      const s = filters.search.toLowerCase()
+      if (!t.title.toLowerCase().includes(s) && !(t.description || '').toLowerCase().includes(s)) return false
+    }
     return true
   })
 
@@ -113,6 +155,11 @@ function Tasks() {
       {/* Filtros */}
       <div className="card" style={{ marginBottom: '16px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label style={{ fontSize: '13px', color: '#718096', display: 'block', marginBottom: '4px' }}>Buscar</label>
+            <input type="text" placeholder="Buscar en título o descripción..." value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })} style={{ marginBottom: 0 }} />
+          </div>
           <div>
             <label style={{ fontSize: '13px', color: '#718096', display: 'block', marginBottom: '4px' }}>Estado</label>
             <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} style={{ width: 'auto' }}>
@@ -159,6 +206,16 @@ function Tasks() {
                     {new Date(task.dueDate) < new Date() && task.status !== 'completed' && ' ⚠️'}
                   </p>
                 )}
+                {task.assignee && task.assignee.id !== currentUser.id && (
+                  <p style={{ fontSize: 13, color: '#6366f1', marginBottom: 8 }}>
+                    Asignada a: {task.assignee.fullName || task.assignee.username}
+                  </p>
+                )}
+                {task.creator && task.creator.id !== currentUser.id && (
+                  <p style={{ fontSize: 13, color: '#718096', marginBottom: 8 }}>
+                    Creada por: {task.creator.fullName || task.creator.username}
+                  </p>
+                )}
                 <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <select value={task.status} onChange={(e) => updateStatus(task.id, e.target.value)} style={{ width: 'auto', marginBottom: 0 }}>
                     <option value="pending">Pendiente</option>
@@ -167,7 +224,15 @@ function Tasks() {
                     <option value="cancelled">Cancelada</option>
                   </select>
                   <button className="btn btn-outline" onClick={() => openEdit(task)}>✏️ Editar</button>
-                  <button className="btn btn-danger" onClick={() => deleteTask(task.id)}>🗑️ Eliminar</button>
+                  {confirmDelete === task.id ? (
+                    <>
+                      <span style={{ fontSize: 13, color: '#ef4444' }}>¿Eliminar?</span>
+                      <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => deleteTask(task.id)}>Sí</button>
+                      <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => setConfirmDelete(null)}>No</button>
+                    </>
+                  ) : (
+                    <button className="btn btn-danger" onClick={() => setConfirmDelete(task.id)}>🗑️</button>
+                  )}
                 </div>
               </div>
             ))}
@@ -214,6 +279,34 @@ function Tasks() {
                     <input type="date" value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} />
                   </div>
                 </div>
+                {isSupervisor && (
+                  <div className="review-section" style={{ position: 'relative' }}>
+                    <label>Asignar a (opcional)</label>
+                    <input type="text" placeholder="Buscar usuario por nombre o email..."
+                      value={userSearch} onChange={e => handleUserSearch(e.target.value)} />
+                    {searchLoading && <div style={{ fontSize: 13, color: '#718096', marginTop: 4 }}>Buscando...</div>}
+                    {userResults.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: 6, zIndex: 100, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                        {userResults.map(u => (
+                          <div key={u.id} onClick={() => selectUser(u)}
+                            style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f7fafc'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                            <span>{u.fullName || u.username}</span>
+                            <span style={{ fontSize: 12, color: '#718096' }}>{u.role}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {assignedUser && (
+                      <div style={{ marginTop: 6, fontSize: 13, color: '#38a169' }}>
+                        Asignado a: {assignedUser.fullName || assignedUser.username}
+                        <button type="button" onClick={() => { setAssignedUser(null); setUserSearch(''); setFormData(p => ({ ...p, assignedTo: '' })) }}
+                          style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>x</button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="modal-footer" style={{ padding: '16px 0 0' }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancelar</button>
                   <button type="submit" className="btn btn-primary">{editingTask ? 'Guardar cambios' : 'Crear Tarea'}</button>

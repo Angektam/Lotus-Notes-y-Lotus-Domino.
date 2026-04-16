@@ -397,6 +397,27 @@ function Reports() {
                 />
               </section>
 
+              <section className="form-section">
+                <h3>V. Período del informe</h3>
+                <div className="form-grid">
+                  <select name="reportMonth" value={formData.reportMonth} onChange={handleInputChange} required>
+                    {['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'].map(m => (
+                      <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    name="reportYear"
+                    placeholder="Año"
+                    value={formData.reportYear}
+                    onChange={handleInputChange}
+                    min="2000"
+                    max="2100"
+                    required
+                  />
+                </div>
+              </section>
+
               <div className="form-actions">
                 <button type="button" className="btn-cancel" onClick={() => setShowForm(false)}>
                   Cancelar

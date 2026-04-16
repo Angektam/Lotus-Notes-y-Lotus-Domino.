@@ -42,6 +42,11 @@ function SupervisorDashboard() {
     <div>
       <h1>📊 Panel del Supervisor</h1>
       <p className="subtitle">Bienvenido, {user.fullName || user.username}</p>
+      {stats.community && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '6px 16px', borderRadius: 20, fontSize: 15, fontWeight: 600, marginBottom: 24 }}>
+          🏘️ {stats.community}
+        </div>
+      )}
 
       <div className="stats-grid">
         <div className="stat-card stat-reports" style={{ color: 'var(--primary-color)' }}>

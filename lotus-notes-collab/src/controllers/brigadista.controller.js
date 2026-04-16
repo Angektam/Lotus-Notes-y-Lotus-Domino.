@@ -2,6 +2,59 @@ const { Report, User, Notification, Attachment } = require('../models');
 const { Op } = require('sequelize');
 const { createAndSendNotification } = require('../utils/notificationHelper');
 
+// Obtener perfil propio del brigadista
+exports.getMyProfile = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'username', 'email', 'fullName', 'department', 'status', 'brigadistaProfile', 'notificationSettings', 'lastLogin', 'createdAt']
+    });
+    if (!user) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+
+    const totalReports = await Report.count({ where: { assignedTo: req.user.id } });
+    const approved = await Report.count({ where: { assignedTo: req.user.id, status: 'APROBADO' } });
+    const pending = await Report.count({ where: { assignedTo: req.user.id, status: { [Op.in]: ['ASIGNADO', 'EN_ELABORACION', 'OBSERVADO'] } } });
+    const overdue = await Report.count({ where: { assignedTo: req.user.id, dueDate: { [Op.lt]: new Date() }, status: { [Op.notIn]: ['APROBADO'] } } });
+
+    res.json({ success: true, data: { ...user.toJSON(), stats: { totalReports, approved, pending, overdue } } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error al obtener perfil', error: error.message });
+  }
+};
+
+// Actualizar perfil propio del brigadista
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const { fullName, department, zone, team, community, notificationSettings, currentPassword, newPassword } = req.body;
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+
+    // Cambio de contraseña opcional
+    if (newPassword) {
+      if (!currentPassword) return res.status(400).json({ success: false, message: 'Debes proporcionar tu contraseña actual' });
+      if (newPassword.length < 6) return res.status(400).json({ success: false, message: 'La nueva contraseña debe tener al menos 6 caracteres' });
+      const valid = await user.comparePassword(currentPassword);
+      if (!valid) return res.status(400).json({ success: false, message: 'La contraseña actual es incorrecta' });
+      await user.update({ password: newPassword });
+    }
+
+    await user.update({
+      fullName: fullName ?? user.fullName,
+      department: department ?? user.department,
+      brigadistaProfile: {
+        ...user.brigadistaProfile,
+        zone: zone ?? user.brigadistaProfile?.zone,
+        team: team ?? user.brigadistaProfile?.team,
+        community: community ?? user.brigadistaProfile?.community
+      },
+      notificationSettings: notificationSettings ?? user.notificationSettings
+    });
+
+    res.json({ success: true, message: newPassword ? 'Perfil y contraseña actualizados' : 'Perfil actualizado', data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error al actualizar perfil', error: error.message });
+  }
+};
+
 // Crear reporte propio (brigadista)
 exports.createReport = async (req, res) => {
   try {

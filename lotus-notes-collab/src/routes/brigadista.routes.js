@@ -32,6 +32,10 @@ const upload = multer({
   }
 });
 
+// Perfil propio
+router.get('/profile', authenticate, checkRole('brigadista', 'admin'), brigadistaController.getMyProfile);
+router.put('/profile', authenticate, checkRole('brigadista', 'admin'), brigadistaController.updateMyProfile);
+
 // Gestión de reportes
 router.post('/reports', authenticate, checkRole('brigadista', 'admin'), brigadistaController.createReport);
 router.get('/reports', authenticate, checkRole('brigadista', 'admin'), brigadistaController.getMyReports);

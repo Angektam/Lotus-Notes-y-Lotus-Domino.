@@ -80,16 +80,30 @@ exports.getStatistics = async (req, res) => {
       }]
     });
 
+    // Agrupar estados: legacy + brigadista
+    const statusMap = reportsByStatus.reduce((acc, item) => {
+      acc[item.status] = parseInt(item.dataValues.count);
+      return acc;
+    }, {});
+
+    const pendingCount = (statusMap['submitted'] || 0) + (statusMap['ENVIADO'] || 0);
+    const approvedCount = (statusMap['approved'] || 0) + (statusMap['APROBADO'] || 0);
+    const rejectedCount = (statusMap['rejected'] || 0) + (statusMap['OBSERVADO'] || 0);
+    const draftCount = (statusMap['draft'] || 0) + (statusMap['ASIGNADO'] || 0) + (statusMap['EN_ELABORACION'] || 0);
+
     res.json({
       success: true,
       data: {
         totalReports,
         totalStudents,
         totalHours: totalHours || 0,
-        reportsByStatus: reportsByStatus.reduce((acc, item) => {
-          acc[item.status] = parseInt(item.dataValues.count);
-          return acc;
-        }, {}),
+        reportsByStatus: {
+          draft: draftCount,
+          submitted: pendingCount,
+          approved: approvedCount,
+          rejected: rejectedCount,
+          ...statusMap
+        },
         recentReports
       }
     });
@@ -169,6 +183,58 @@ exports.rejectReport = async (req, res) => {
   } catch (error) {
     console.error('Error al rechazar informe:', error);
     res.status(500).json({ success: false, message: 'Error al rechazar el informe', error: error.message });
+  }
+};
+
+// Aprobar/rechazar múltiples informes en lote (admin)
+exports.bulkReviewReports = async (req, res) => {
+  try {
+    const { ids, action, comments } = req.body; // action: 'approve' | 'reject'
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Debes seleccionar al menos un informe' });
+    }
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Acción inválida' });
+    }
+    if (action === 'reject' && !comments?.trim()) {
+      return res.status(400).json({ success: false, message: 'Debes proporcionar comentarios al rechazar informes' });
+    }
+
+    const reports = await Report.findAll({ where: { id: ids } });
+
+    const results = { success: [], failed: [] };
+
+    for (const report of reports) {
+      try {
+        const isBrigadistaFlow = ['ASIGNADO','EN_ELABORACION','ENVIADO','EN_REVISION','OBSERVADO','APROBADO'].includes(report.status);
+        const newStatus = action === 'approve'
+          ? (isBrigadistaFlow ? REPORT_STATUS.APROBADO : REPORT_STATUS.APPROVED)
+          : (isBrigadistaFlow ? REPORT_STATUS.OBSERVADO : REPORT_STATUS.REJECTED);
+
+        await report.update({
+          status: newStatus,
+          reviewedBy: req.user.id,
+          reviewedAt: new Date(),
+          reviewComments: comments || (action === 'approve' ? 'Aprobado en lote' : null),
+          workflowHistory: isBrigadistaFlow
+            ? [...(report.workflowHistory || []), { state: newStatus, date: new Date(), by: req.user.id, comments: comments || `${action === 'approve' ? 'Aprobado' : 'Rechazado'} en lote` }]
+            : report.workflowHistory
+        });
+        results.success.push(report.id);
+      } catch {
+        results.failed.push(report.id);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `${results.success.length} informe(s) procesado(s)${results.failed.length ? `, ${results.failed.length} fallaron` : ''}`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error en bulk review:', error);
+    res.status(500).json({ success: false, message: 'Error al procesar informes', error: error.message });
   }
 };
 

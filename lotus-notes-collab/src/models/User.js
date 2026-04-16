@@ -46,7 +46,7 @@ const User = sequelize.define('User', {
     type: DataTypes.JSON,
     allowNull: true,
     defaultValue: null
-    // { zone, team, supervisorId, startDate }
+    // { zone, team, supervisorId, startDate, community }
   },
   // Perfil de Supervisor
   supervisorProfile: {

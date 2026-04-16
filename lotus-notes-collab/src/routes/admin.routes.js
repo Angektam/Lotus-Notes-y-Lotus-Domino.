@@ -15,6 +15,7 @@ router.get('/statistics', adminController.getStatistics);
 router.get('/reports', adminController.getAllReports);
 router.put('/reports/:id/approve', adminController.approveReport);
 router.put('/reports/:id/reject', adminController.rejectReport);
+router.post('/reports/bulk-review', adminController.bulkReviewReports);
 
 // Gestión de estudiantes
 router.get('/students', adminController.getAllStudents);

@@ -18,11 +18,11 @@ const authLimiter = rateLimit({
 
 /**
  * Rate limiter general para la API.
- * Máximo 200 requests por IP en 15 minutos.
+ * En desarrollo se usa un límite más alto para evitar 429 con React StrictMode.
  */
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: process.env.NODE_ENV === 'production' ? 200 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

@@ -9,5 +9,6 @@ router.post('/', messageController.sendMessage);
 router.get('/inbox', messageController.getInbox);
 router.get('/sent', messageController.getSentMessages);
 router.put('/:id/read', messageController.markAsRead);
+router.delete('/:id', messageController.deleteMessage);
 
 module.exports = router;

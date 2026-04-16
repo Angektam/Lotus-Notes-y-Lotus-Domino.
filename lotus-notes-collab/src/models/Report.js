@@ -61,7 +61,7 @@ const Report = sequelize.define('Report', {
   brigadistaInfo: {
     type: DataTypes.JSON,
     defaultValue: {}
-    // { name, zone, team }
+    // { name, zone, team, community }
   },
   
   // Actividades realizadas

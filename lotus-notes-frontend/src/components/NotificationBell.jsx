@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import axios from '../api/axios';
 import './NotificationBell.css';
@@ -9,10 +10,13 @@ const NotificationBell = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const fetchedRef = useRef(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
+    if (token && !fetchedRef.current) {
+      fetchedRef.current = true;
       fetchNotifications();
       fetchUnreadCount();
     }
@@ -171,7 +175,7 @@ const NotificationBell = () => {
 
           {notifications.length > 10 && (
             <div className="dropdown-footer">
-              <button onClick={() => window.location.href = '/notifications'}>
+              <button onClick={() => navigate('/notifications')}>
                 Ver todas las notificaciones
               </button>
             </div>

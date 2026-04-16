@@ -58,7 +58,7 @@ const AnalyticsDashboard = ({ userRole }) => {
       link.remove();
     } catch (error) {
       console.error('Error al exportar:', error);
-      alert('Error al exportar reportes');
+      // silencioso — el usuario verá que no descargó nada
     }
   };
 

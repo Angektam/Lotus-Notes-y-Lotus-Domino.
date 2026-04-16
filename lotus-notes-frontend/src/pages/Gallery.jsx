@@ -26,9 +26,23 @@ function Gallery() {
 
   useEffect(() => { fetchImages() }, [])
 
+  const MAX_SIZE_MB = 5
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+
   const handleUpload = async (e) => {
     const file = e.target.files[0]
     if (!file) return
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError('Tipo de archivo no permitido. Solo se aceptan imágenes (JPG, PNG, GIF, WebP, SVG)')
+      fileRef.current.value = ''
+      return
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setError(`El archivo supera el límite de ${MAX_SIZE_MB} MB`)
+      fileRef.current.value = ''
+      return
+    }
 
     const form = new FormData()
     form.append('image', file)

@@ -2,24 +2,30 @@ import { useEffect, useState } from 'react'
 import api from '../api/axios'
 import './AdminReports.css'
 
+const SCORE_COLOR = (n) => n >= 8 ? '#22c55e' : n >= 5 ? '#f59e0b' : '#ef4444'
+
 function SupervisorPendingReports() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedReport, setSelectedReport] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [reviewComments, setReviewComments] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionMsg, setActionMsg] = useState({ type: '', text: '' })
+  // IA
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState(null)
 
-  useEffect(() => {
-    loadPending()
-  }, [])
+  useEffect(() => { loadPending() }, [])
 
   const loadPending = async () => {
+    setLoading(true)
     try {
       const res = await api.get('/supervisor/reports/pending')
       setReports(res.data.data || [])
     } catch (error) {
       console.error('Error al cargar pendientes:', error)
-      alert('Error al cargar reportes pendientes')
+      setActionMsg({ type: 'error', text: 'Error al cargar reportes pendientes' })
     } finally {
       setLoading(false)
     }
@@ -28,6 +34,8 @@ function SupervisorPendingReports() {
   const openModal = (report) => {
     setSelectedReport(report)
     setReviewComments(report.reviewComments || '')
+    setActionMsg({ type: '', text: '' })
+    setAiResult(null)
     setShowModal(true)
   }
 
@@ -38,49 +46,53 @@ function SupervisorPendingReports() {
   }
 
   const approve = async (reportId) => {
+    setActionLoading(true)
     try {
-      await api.put(`/supervisor/reports/${reportId}/review`, {
-        action: 'APPROVE',
-        comments: reviewComments,
-        observations: []
-      })
-      alert('Reporte aprobado')
+      await api.put(`/supervisor/reports/${reportId}/review`, { action: 'APPROVE', comments: reviewComments, observations: [] })
+      setActionMsg({ type: 'success', text: 'Reporte aprobado' })
       closeModal()
       loadPending()
     } catch (error) {
-      console.error('Error al aprobar:', error)
-      alert(error.response?.data?.message || error.response?.data?.error || 'Error al aprobar')
+      setActionMsg({ type: 'error', text: error.response?.data?.message || error.response?.data?.error || 'Error al aprobar' })
+    } finally {
+      setActionLoading(false)
     }
   }
 
   const requestFixes = async (reportId) => {
     if (!reviewComments.trim()) {
-      alert('Agrega comentarios/observaciones para solicitar correcciones')
+      setActionMsg({ type: 'error', text: 'Agrega comentarios para solicitar correcciones' })
       return
     }
-
+    setActionLoading(true)
     try {
-      await api.put(`/supervisor/reports/${reportId}/review`, {
-        action: 'REJECT',
-        comments: reviewComments,
-        observations: []
-      })
-      alert('Correcciones solicitadas')
+      await api.put(`/supervisor/reports/${reportId}/review`, { action: 'REJECT', comments: reviewComments, observations: [] })
+      setActionMsg({ type: 'success', text: 'Correcciones solicitadas' })
       closeModal()
       loadPending()
     } catch (error) {
-      console.error('Error al solicitar correcciones:', error)
-      alert(error.response?.data?.message || error.response?.data?.error || 'Error al solicitar correcciones')
+      setActionMsg({ type: 'error', text: error.response?.data?.message || error.response?.data?.error || 'Error al solicitar correcciones' })
+    } finally {
+      setActionLoading(false)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Cargando reportes pendientes...</p>
-      </div>
-    )
+  const analyzeWithAI = async (reportId) => {
+    setAiLoading(true)
+    setAiResult(null)
+    try {
+      const res = await api.post(`/supervisor/reports/${reportId}/ai-analyze`)
+      const data = res.data.data
+      setAiResult(data)
+      // Si la IA recomienda aprobar/observar, pre-llenar el comentario
+      if (data.comentario && !reviewComments.trim()) {
+        setReviewComments(data.comentario)
+      }
+    } catch (err) {
+      setAiResult({ error: err.response?.data?.message || 'Error al contactar la IA' })
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   return (
@@ -90,8 +102,17 @@ function SupervisorPendingReports() {
         <p className="subtitle">Reportes enviados por brigadistas</p>
       </div>
 
+      {actionMsg.text && (
+        <div className={actionMsg.type === 'success' ? 'success-message' : 'error-message'} style={{ marginBottom: 16 }}>
+          {actionMsg.text}
+          <button onClick={() => setActionMsg({ type: '', text: '' })} style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
+
       <div className="reports-grid">
-        {reports.length === 0 ? (
+        {loading ? (
+          <div className="loading-container"><div className="spinner"></div><p>Cargando reportes pendientes...</p></div>
+        ) : reports.length === 0 ? (
           <div className="empty-state card">
             <p>No tienes reportes pendientes</p>
           </div>
@@ -180,12 +201,100 @@ function SupervisorPendingReports() {
                   rows="4"
                 />
               </div>
+
+              {/* Panel IA */}
+              <div style={{ marginTop: 16, border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ background: '#f8fafc', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb' }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>🤖 Análisis con IA</span>
+                  <button
+                    className="btn btn-outline"
+                    style={{ padding: '4px 14px', fontSize: 13 }}
+                    onClick={() => analyzeWithAI(selectedReport.id)}
+                    disabled={aiLoading}
+                  >
+                    {aiLoading ? '⏳ Analizando...' : aiResult ? '🔄 Re-analizar' : '✨ Analizar reporte'}
+                  </button>
+                </div>
+
+                {aiLoading && (
+                  <div style={{ padding: 20, textAlign: 'center', color: '#718096', fontSize: 14 }}>
+                    <div className="spinner" style={{ margin: '0 auto 8px' }}></div>
+                    Analizando el reporte con IA...
+                  </div>
+                )}
+
+                {aiResult && !aiLoading && (
+                  <div style={{ padding: 16 }}>
+                    {aiResult.error ? (
+                      <div className="error-message">{aiResult.error}</div>
+                    ) : (
+                      <>
+                        {/* Puntuación y recomendación */}
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 13, color: '#718096' }}>Puntuación:</span>
+                            <span style={{ fontSize: 22, fontWeight: 700, color: SCORE_COLOR(aiResult.puntuacion) }}>
+                              {aiResult.puntuacion}/10
+                            </span>
+                          </div>
+                          <span style={{
+                            padding: '4px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                            background: aiResult.recomendacion === 'APROBAR' ? '#dcfce7' : '#fef3c7',
+                            color: aiResult.recomendacion === 'APROBAR' ? '#16a34a' : '#d97706'
+                          }}>
+                            {aiResult.recomendacion === 'APROBAR' ? '✓ Recomendación: APROBAR' : '⚠ Recomendación: OBSERVAR'}
+                          </span>
+                        </div>
+
+                        {/* Resumen */}
+                        <div style={{ marginBottom: 12 }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: '#374151' }}>Resumen:</p>
+                          <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.5 }}>{aiResult.resumen}</p>
+                        </div>
+
+                        {/* Observaciones */}
+                        {aiResult.observaciones?.length > 0 && (
+                          <div style={{ marginBottom: 12 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' }}>Puntos a revisar:</p>
+                            <ul style={{ margin: 0, paddingLeft: 18 }}>
+                              {aiResult.observaciones.map((o, i) => (
+                                <li key={i} style={{ fontSize: 13, color: '#4b5563', marginBottom: 4 }}>{o}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Botón para usar el comentario generado */}
+                        {aiResult.comentario && (
+                          <button
+                            className="btn btn-outline"
+                            style={{ fontSize: 12, padding: '4px 12px' }}
+                            onClick={() => setReviewComments(aiResult.comentario)}
+                          >
+                            Usar comentario generado por IA
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {!aiResult && !aiLoading && (
+                  <div style={{ padding: '12px 16px', fontSize: 13, color: '#9ca3af' }}>
+                    Haz clic en "Analizar reporte" para obtener un resumen y recomendación automática.
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={closeModal}>Cancelar</button>
-              <button className="btn btn-success" onClick={() => approve(selectedReport.id)}>✓ Aceptar</button>
-              <button className="btn btn-danger" onClick={() => requestFixes(selectedReport.id)}>✕ Solicitar correcciones</button>
+              <button className="btn btn-secondary" onClick={closeModal} disabled={actionLoading}>Cancelar</button>
+              <button className="btn btn-success" onClick={() => approve(selectedReport.id)} disabled={actionLoading}>
+                {actionLoading ? 'Procesando...' : '✓ Aceptar'}
+              </button>
+              <button className="btn btn-danger" onClick={() => requestFixes(selectedReport.id)} disabled={actionLoading}>
+                {actionLoading ? 'Procesando...' : '✕ Solicitar correcciones'}
+              </button>
             </div>
           </div>
         </div>

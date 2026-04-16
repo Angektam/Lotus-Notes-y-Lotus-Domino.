@@ -19,6 +19,7 @@ function SupervisorSearch() {
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [searchMsg, setSearchMsg] = useState({ type: '', text: '' })
 
   const search = async (page = 1) => {
     setLoading(true)
@@ -34,7 +35,7 @@ function SupervisorSearch() {
       setPagination(res.data.pagination || null)
     } catch (err) {
       console.error('Error en búsqueda:', err)
-      alert('Error al buscar reportes')
+      setSearchMsg({ type: 'error', text: 'Error al buscar reportes' })
     } finally {
       setLoading(false)
     }
@@ -58,7 +59,7 @@ function SupervisorSearch() {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Error al exportar:', err)
-      alert('Error al exportar')
+      setSearchMsg({ type: 'error', text: 'Error al exportar' })
     } finally {
       setExporting(false)
     }
@@ -72,6 +73,13 @@ function SupervisorSearch() {
         <h1>🔍 Búsqueda avanzada</h1>
         <p className="subtitle">Busca y filtra reportes de tus brigadistas</p>
       </div>
+
+      {searchMsg.text && (
+        <div className={searchMsg.type === 'error' ? 'error-message' : 'success-message'} style={{ marginBottom: 16 }}>
+          {searchMsg.text}
+          <button onClick={() => setSearchMsg({ type: '', text: '' })} style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
 
       <div className="card">
         <form onSubmit={handleSubmit} className="filters-grid">

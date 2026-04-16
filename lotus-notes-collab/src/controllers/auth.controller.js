@@ -23,12 +23,12 @@ exports.register = async (req, res) => {
       where: { email: email.toLowerCase() }
     });
     if (existingUser) {
-      return res.status(400).json({ error: 'El email ya está registrado' });
+      return res.status(409).json({ error: 'El email ya está registrado' });
     }
 
     const existingUsername = await User.findOne({ where: { username: username.trim() } });
     if (existingUsername) {
-      return res.status(400).json({ error: 'El nombre de usuario ya está en uso' });
+      return res.status(409).json({ error: 'El nombre de usuario ya está en uso' });
     }
 
     const user = await User.create({

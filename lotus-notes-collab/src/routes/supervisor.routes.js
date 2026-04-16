@@ -15,6 +15,7 @@ router.post('/reports/assign', authenticate, checkRole('supervisor', 'admin'), s
 router.get('/reports/pending', authenticate, checkRole('supervisor', 'admin'), supervisorController.getPendingReports);
 router.get('/reports', authenticate, checkRole('supervisor', 'admin'), supervisorController.getAllReports);
 router.put('/reports/:id/review', authenticate, checkRole('supervisor', 'admin'), supervisorController.reviewReport);
+router.post('/reports/:id/ai-analyze', authenticate, checkRole('supervisor', 'admin'), supervisorController.aiAnalyzeReport);
 
 // Dashboard
 router.get('/dashboard/stats', authenticate, checkRole('supervisor', 'admin'), supervisorController.getDashboardStats);

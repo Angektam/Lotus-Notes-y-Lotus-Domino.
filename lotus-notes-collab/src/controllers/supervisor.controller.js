@@ -2,34 +2,26 @@ const { Report, User, Notification } = require('../models');
 const { Op } = require('sequelize');
 const { REPORT_STATUS } = require('../utils/reportStatus');
 const { createAndSendNotification } = require('../utils/notificationHelper');
+const { analyzeReport } = require('../services/aiReview');
 
 // Registrar nuevo brigadista
 exports.registerBrigadista = async (req, res) => {
   try {
-    const { username, email, password, fullName, zone, team } = req.body;
+    const { username, email, password, fullName, zone, team, community } = req.body;
 
     const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [{ email }, { username }]
-      }
+      where: { [Op.or]: [{ email }, { username }] }
     });
 
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'El usuario o email ya existe'
-      });
+      return res.status(400).json({ success: false, message: 'El usuario o email ya existe' });
     }
 
     const brigadista = await User.create({
-      username,
-      email,
-      password,
-      fullName,
+      username, email, password, fullName,
       role: 'brigadista',
       brigadistaProfile: {
-        zone,
-        team,
+        zone, team, community: community || '',
         supervisorId: req.user.id,
         startDate: new Date()
       }
@@ -38,21 +30,11 @@ exports.registerBrigadista = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Brigadista registrado exitosamente',
-      data: {
-        id: brigadista.id,
-        username: brigadista.username,
-        email: brigadista.email,
-        fullName: brigadista.fullName,
-        role: brigadista.role
-      }
+      data: { id: brigadista.id, username: brigadista.username, email: brigadista.email, fullName: brigadista.fullName, role: brigadista.role }
     });
   } catch (error) {
     console.error('Error al registrar brigadista:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al registrar brigadista',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al registrar brigadista', error: error.message });
   }
 };
 
@@ -60,14 +42,19 @@ exports.registerBrigadista = async (req, res) => {
 exports.updateBrigadista = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, zone, team } = req.body;
+    const { fullName, zone, team, community } = req.body;
 
     const brigadista = await User.findOne({ where: { id, role: 'brigadista' } });
     if (!brigadista) return res.status(404).json({ success: false, message: 'Brigadista no encontrado' });
 
     await brigadista.update({
       fullName: fullName || brigadista.fullName,
-      brigadistaProfile: { ...brigadista.brigadistaProfile, zone: zone ?? brigadista.brigadistaProfile?.zone, team: team ?? brigadista.brigadistaProfile?.team }
+      brigadistaProfile: {
+        ...brigadista.brigadistaProfile,
+        zone: zone ?? brigadista.brigadistaProfile?.zone,
+        team: team ?? brigadista.brigadistaProfile?.team,
+        community: community ?? brigadista.brigadistaProfile?.community
+      }
     });
 
     res.json({ success: true, message: 'Brigadista actualizado', data: brigadista });
@@ -91,25 +78,50 @@ exports.deleteBrigadista = async (req, res) => {
   }
 };
 
-// Listar brigadistas
+// Listar brigadistas — cada supervisor solo ve los suyos (por supervisorId en brigadistaProfile)
 exports.getBrigadistas = async (req, res) => {
   try {
+    const { community } = req.query;
+    const isAdmin = req.user.role === 'admin';
+
     const brigadistas = await User.findAll({
       where: { role: 'brigadista' },
-      attributes: ['id', 'username', 'email', 'fullName', 'brigadistaProfile', 'status', 'createdAt']
+      attributes: ['id', 'username', 'email', 'fullName', 'brigadistaProfile', 'status', 'createdAt'],
+      include: [{ model: Report, as: 'assignedReports', attributes: ['id', 'status'] }]
     });
 
-    res.json({
-      success: true,
-      data: brigadistas
-    });
+    let data = brigadistas
+      // Filtrar por supervisorId salvo que sea admin
+      .filter(b => isAdmin || b.brigadistaProfile?.supervisorId === req.user.id)
+      .map(b => {
+        const reports = b.assignedReports || [];
+        const reportStats = {
+          total: reports.length,
+          asignado: reports.filter(r => r.status === 'ASIGNADO').length,
+          enElaboracion: reports.filter(r => r.status === 'EN_ELABORACION').length,
+          enviado: reports.filter(r => r.status === 'ENVIADO').length,
+          aprobado: reports.filter(r => r.status === 'APROBADO').length,
+          observado: reports.filter(r => r.status === 'OBSERVADO').length,
+        };
+        const { assignedReports, ...rest } = b.toJSON();
+        return { ...rest, reportStats };
+      });
+
+    if (community) {
+      data = data.filter(b => (b.brigadistaProfile?.community || '') === community);
+    }
+
+    const byCommunity = data.reduce((acc, b) => {
+      const com = b.brigadistaProfile?.community || 'Sin comunidad';
+      if (!acc[com]) acc[com] = [];
+      acc[com].push(b);
+      return acc;
+    }, {});
+
+    res.json({ success: true, data, byCommunity });
   } catch (error) {
     console.error('Error al obtener brigadistas:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener brigadistas',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al obtener brigadistas', error: error.message });
   }
 };
 
@@ -143,7 +155,8 @@ exports.assignReport = async (req, res) => {
       brigadistaInfo: {
         name: brigadista.fullName,
         zone: brigadista.brigadistaProfile?.zone || '',
-        team: brigadista.brigadistaProfile?.team || ''
+        team: brigadista.brigadistaProfile?.team || '',
+        community: brigadista.brigadistaProfile?.community || ''
       },
       workflowHistory: [{
         state: REPORT_STATUS.ASIGNADO,
@@ -338,51 +351,52 @@ exports.getAllReports = async (req, res) => {
   }
 };
 
-// Obtener estadísticas del dashboard
+// Analizar reporte con IA
+exports.aiAnalyzeReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const report = await Report.findOne({
+      where: { id },
+      include: [{ model: User, as: 'brigadista', attributes: ['id', 'fullName', 'email'] }]
+    });
+    if (!report) return res.status(404).json({ success: false, message: 'Reporte no encontrado' });
+
+    const analysis = await analyzeReport(report);
+    res.json({ success: true, data: analysis });
+  } catch (error) {
+    console.error('[IA] Error:', error);
+    res.status(500).json({ success: false, message: 'Error al analizar el reporte', error: error.message });
+  }
+};
+
 exports.getDashboardStats = async (req, res) => {
   try {
     const supervisorId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
 
-    const totalReports = await Report.count({
-      where: { assignedBy: supervisorId }
-    });
-
-    const pendingReview = await Report.count({
-      where: { assignedBy: supervisorId, status: REPORT_STATUS.ENVIADO }
-    });
-
-    const approved = await Report.count({
-      where: { assignedBy: supervisorId, status: REPORT_STATUS.APROBADO }
-    });
-
+    const totalReports = await Report.count({ where: { assignedBy: supervisorId } });
+    const pendingReview = await Report.count({ where: { assignedBy: supervisorId, status: REPORT_STATUS.ENVIADO } });
+    const approved = await Report.count({ where: { assignedBy: supervisorId, status: REPORT_STATUS.APROBADO } });
     const overdue = await Report.count({
-      where: {
-        assignedBy: supervisorId,
-        dueDate: { [Op.lt]: new Date() },
-        status: { [Op.notIn]: [REPORT_STATUS.APROBADO] }
-      }
+      where: { assignedBy: supervisorId, dueDate: { [Op.lt]: new Date() }, status: { [Op.notIn]: [REPORT_STATUS.APROBADO] } }
     });
 
-    const totalBrigadistas = await User.count({
-      where: { role: 'brigadista' }
-    });
+    // Solo contar brigadistas de esta comunidad
+    const allBrigadistas = await User.findAll({ where: { role: 'brigadista' }, attributes: ['id', 'brigadistaProfile'] });
+    const myBrigadistas = isAdmin
+      ? allBrigadistas
+      : allBrigadistas.filter(b => b.brigadistaProfile?.supervisorId === supervisorId);
+
+    // Nombre de la comunidad del supervisor
+    const supUser = await User.findByPk(supervisorId, { attributes: ['supervisorProfile'] });
+    const community = supUser?.supervisorProfile?.community || null;
 
     res.json({
       success: true,
-      data: {
-        totalReports,
-        pendingReview,
-        approved,
-        overdue,
-        totalBrigadistas
-      }
+      data: { totalReports, pendingReview, approved, overdue, totalBrigadistas: myBrigadistas.length, community }
     });
   } catch (error) {
     console.error('Error al obtener estadísticas:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener estadísticas',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error al obtener estadísticas', error: error.message });
   }
 };

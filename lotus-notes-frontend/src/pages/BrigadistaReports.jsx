@@ -2,25 +2,26 @@ import { useEffect, useMemo, useState } from 'react'
 import api from '../api/axios'
 import './AdminReports.css'
 
+const today = new Date().toISOString().split('T')[0]
+
 function BrigadistaReports() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({ status: 'all' })
+  const [pageMsg, setPageMsg] = useState({ type: '', text: '' })
 
   const [selectedReport, setSelectedReport] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [modalMsg, setModalMsg] = useState({ type: '', text: '' })
+  const [actionLoading, setActionLoading] = useState(false)
 
-  const [edit, setEdit] = useState({
-    description: '',
-    observations: '',
-    activities: []
-  })
-
+  const [edit, setEdit] = useState({ description: '', observations: '', activities: [] })
   const [reviewComments, setReviewComments] = useState('')
   const [fileToUpload, setFileToUpload] = useState(null)
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
   const [newReport, setNewReport] = useState({ title: '', description: '', dueDate: '', periodStart: '', periodEnd: '' })
 
   useEffect(() => {
@@ -33,7 +34,7 @@ function BrigadistaReports() {
       setReports(res.data.data || [])
     } catch (error) {
       console.error('Error al cargar mis reportes:', error)
-      alert('Error al cargar reportes')
+      setPageMsg({ type: 'error', text: 'Error al cargar reportes' })
     } finally {
       setLoading(false)
     }
@@ -64,6 +65,7 @@ function BrigadistaReports() {
     })
     setReviewComments(report.reviewComments || '')
     setFileToUpload(null)
+    setModalMsg({ type: '', text: '' })
     setShowModal(true)
   }
 
@@ -75,18 +77,23 @@ function BrigadistaReports() {
   }
 
   const createReport = async () => {
-    if (!newReport.title.trim() || !newReport.dueDate) {
-      alert('Título y fecha límite son obligatorios')
-      return
+    setCreateError('')
+    if (!newReport.title.trim()) { setCreateError('El título es obligatorio'); return }
+    if (!newReport.dueDate) { setCreateError('La fecha límite es obligatoria'); return }
+    if (newReport.dueDate < today) { setCreateError('La fecha límite no puede ser en el pasado'); return }
+    if (newReport.periodStart && newReport.periodEnd && newReport.periodEnd < newReport.periodStart) {
+      setCreateError('La fecha de fin del período no puede ser anterior al inicio'); return
     }
     setCreating(true)
     try {
       await api.post('/brigadista/reports', newReport)
       setShowCreateModal(false)
       setNewReport({ title: '', description: '', dueDate: '', periodStart: '', periodEnd: '' })
+      setPageMsg({ type: 'success', text: 'Reporte creado exitosamente' })
+      setTimeout(() => setPageMsg({ type: '', text: '' }), 4000)
       loadReports()
     } catch (error) {
-      alert(error.response?.data?.message || 'Error al crear reporte')
+      setCreateError(error.response?.data?.message || 'Error al crear reporte')
     } finally {
       setCreating(false)
     }
@@ -119,60 +126,59 @@ function BrigadistaReports() {
 
   const save = async () => {
     if (!selectedReport) return
+    setActionLoading(true)
     try {
       await api.put(`/brigadista/reports/${selectedReport.id}`, {
         description: edit.description,
         observations: edit.observations,
         activities: edit.activities
       })
-      alert('Reporte guardado')
+      setModalMsg({ type: 'success', text: 'Reporte guardado' })
       await loadReports()
       const updated = (await api.get(`/brigadista/reports/${selectedReport.id}`)).data.data
       openModal(updated)
     } catch (error) {
       console.error('Error al guardar:', error)
-      alert(error.response?.data?.message || error.response?.data?.error || 'Error al guardar')
+      setModalMsg({ type: 'error', text: error.response?.data?.message || error.response?.data?.error || 'Error al guardar' })
+    } finally {
+      setActionLoading(false)
     }
   }
 
   const submit = async () => {
     if (!selectedReport) return
+    setActionLoading(true)
     try {
       await api.post(`/brigadista/reports/${selectedReport.id}/submit`)
-      alert('Reporte enviado a revisión')
-      closeModal()
-      loadReports()
+      setModalMsg({ type: 'success', text: 'Reporte enviado a revisión' })
+      setTimeout(() => { closeModal(); loadReports() }, 1500)
     } catch (error) {
       console.error('Error al enviar:', error)
-      alert(error.response?.data?.message || error.response?.data?.error || 'Error al enviar')
+      setModalMsg({ type: 'error', text: error.response?.data?.message || error.response?.data?.error || 'Error al enviar' })
+    } finally {
+      setActionLoading(false)
     }
   }
 
   const upload = async () => {
     if (!selectedReport || !fileToUpload) return
+    setActionLoading(true)
     try {
       const fd = new FormData()
       fd.append('file', fileToUpload)
       await api.post(`/brigadista/reports/${selectedReport.id}/attachments`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      alert('Archivo subido')
+      setModalMsg({ type: 'success', text: 'Archivo subido' })
       setFileToUpload(null)
       const updated = (await api.get(`/brigadista/reports/${selectedReport.id}`)).data.data
       openModal(updated)
     } catch (error) {
       console.error('Error al subir archivo:', error)
-      alert(error.response?.data?.message || error.response?.data?.error || 'Error al subir archivo')
+      setModalMsg({ type: 'error', text: error.response?.data?.message || error.response?.data?.error || 'Error al subir archivo' })
+    } finally {
+      setActionLoading(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Cargando mis reportes...</p>
-      </div>
-    )
   }
 
   return (
@@ -184,6 +190,13 @@ function BrigadistaReports() {
           + Nuevo Reporte
         </button>
       </div>
+
+      {pageMsg.text && (
+        <div className={pageMsg.type === 'success' ? 'success-message' : 'error-message'} style={{ marginBottom: 16 }}>
+          {pageMsg.text}
+          <button onClick={() => setPageMsg({ type: '', text: '' })} style={{ marginLeft: 8, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
 
       <div className="filters-card card">
         <div className="filters-grid">
@@ -205,7 +218,9 @@ function BrigadistaReports() {
       </div>
 
       <div className="reports-grid">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="loading-container"><div className="spinner"></div><p>Cargando mis reportes...</p></div>
+        ) : filtered.length === 0 ? (
           <div className="empty-state card">
             <p>No hay reportes para mostrar</p>
           </div>
@@ -265,49 +280,29 @@ function BrigadistaReports() {
               <button className="btn-close" onClick={() => setShowCreateModal(false)}>✕</button>
             </div>
             <div className="modal-body">
+              {createError && <div className="error-message" style={{ marginBottom: 12 }}>{createError}</div>}
               <div className="review-section">
                 <label>Título *</label>
-                <input
-                  value={newReport.title}
-                  onChange={(e) => setNewReport({ ...newReport, title: e.target.value })}
-                  placeholder="Título del reporte"
-                />
+                <input value={newReport.title} onChange={(e) => setNewReport({ ...newReport, title: e.target.value })} placeholder="Título del reporte" />
               </div>
               <div className="review-section">
                 <label>Descripción</label>
-                <textarea
-                  value={newReport.description}
-                  onChange={(e) => setNewReport({ ...newReport, description: e.target.value })}
-                  rows="3"
-                  placeholder="Descripción del reporte..."
-                />
+                <textarea value={newReport.description} onChange={(e) => setNewReport({ ...newReport, description: e.target.value })} rows="3" placeholder="Descripción del reporte..." />
               </div>
               <div className="grid grid-2">
                 <div className="review-section">
                   <label>Fecha límite *</label>
-                  <input
-                    type="date"
-                    value={newReport.dueDate}
-                    onChange={(e) => setNewReport({ ...newReport, dueDate: e.target.value })}
-                  />
+                  <input type="date" value={newReport.dueDate} min={today} onChange={(e) => setNewReport({ ...newReport, dueDate: e.target.value })} />
                 </div>
               </div>
               <div className="grid grid-2">
                 <div className="review-section">
                   <label>Inicio del período</label>
-                  <input
-                    type="date"
-                    value={newReport.periodStart}
-                    onChange={(e) => setNewReport({ ...newReport, periodStart: e.target.value })}
-                  />
+                  <input type="date" value={newReport.periodStart} onChange={(e) => setNewReport({ ...newReport, periodStart: e.target.value })} />
                 </div>
                 <div className="review-section">
                   <label>Fin del período</label>
-                  <input
-                    type="date"
-                    value={newReport.periodEnd}
-                    onChange={(e) => setNewReport({ ...newReport, periodEnd: e.target.value })}
-                  />
+                  <input type="date" value={newReport.periodEnd} min={newReport.periodStart || undefined} onChange={(e) => setNewReport({ ...newReport, periodEnd: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -336,6 +331,12 @@ function BrigadistaReports() {
                 <p><strong>Fecha límite:</strong> {selectedReport.dueDate ? new Date(selectedReport.dueDate).toLocaleDateString('es-MX') : '-'}</p>
                 <p><strong>Supervisor:</strong> {selectedReport.supervisor?.fullName || selectedReport.supervisor?.username || '-'}</p>
               </div>
+
+              {modalMsg.text && (
+                <div className={modalMsg.type === 'success' ? 'success-message' : 'error-message'} style={{ marginBottom: 12 }}>
+                  {modalMsg.text}
+                </div>
+              )}
 
               {selectedReport.status === 'OBSERVADO' && reviewComments && (
                 <div className="review-comments">
@@ -446,18 +447,12 @@ function BrigadistaReports() {
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={closeModal}>
-                Cerrar
+              <button className="btn btn-secondary" onClick={closeModal} disabled={actionLoading}>Cerrar</button>
+              <button className="btn btn-primary" onClick={save} disabled={actionLoading || selectedReport.status === 'ENVIADO' || selectedReport.status === 'APROBADO'}>
+                {actionLoading ? 'Guardando...' : 'Guardar'}
               </button>
-              <button className="btn btn-primary" onClick={save} disabled={selectedReport.status === 'ENVIADO' || selectedReport.status === 'APROBADO'}>
-                Guardar
-              </button>
-              <button
-                className="btn btn-success"
-                onClick={submit}
-                disabled={!(selectedReport.status === 'EN_ELABORACION' || selectedReport.status === 'OBSERVADO')}
-              >
-                Enviar a revisión
+              <button className="btn btn-success" onClick={submit} disabled={actionLoading || !(selectedReport.status === 'EN_ELABORACION' || selectedReport.status === 'OBSERVADO')}>
+                {actionLoading ? 'Enviando...' : 'Enviar a revisión'}
               </button>
             </div>
           </div>

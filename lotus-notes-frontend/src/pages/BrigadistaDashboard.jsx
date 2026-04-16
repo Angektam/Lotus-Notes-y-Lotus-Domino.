@@ -106,6 +106,11 @@ function BrigadistaDashboard() {
             <h3>Calendario</h3>
             <p>Eventos y recordatorios</p>
           </Link>
+          <Link to="/brigadista/profile" className="action-card">
+            <div className="action-icon">👤</div>
+            <h3>Mi Perfil</h3>
+            <p>Ver y editar tu información</p>
+          </Link>
         </div>
       </div>
 

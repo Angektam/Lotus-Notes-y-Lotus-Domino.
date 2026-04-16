@@ -32,14 +32,14 @@
   margin-bottom: 8px;
   font-weight: 500;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .filter-summary {
   padding-top: 16px;
   border-top: 1px solid var(--border-color);
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -91,13 +91,13 @@
 
 .student-info h3 {
   margin: 0 0 4px 0;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 500;
   color: var(--text-primary);
 }
 
 .student-email {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   margin: 0;
 }
@@ -118,13 +118,13 @@
 }
 
 .detail-label {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   font-weight: 500;
 }
 
 .detail-value {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-primary);
   font-weight: 500;
   text-align: right;
@@ -143,12 +143,12 @@
   display: block;
   margin-bottom: 8px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .review-comments p {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
 }
@@ -163,7 +163,7 @@
 .report-actions .btn {
   flex: 1;
   min-width: 100px;
-  font-size: 13px;
+  font-size: 14px;
   padding: 10px 16px;
 }
 
@@ -219,7 +219,7 @@
 
 .modal-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 500;
 }
 
@@ -252,7 +252,7 @@
   margin-top: 24px;
   margin-bottom: 12px;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .report-full-details p {
@@ -296,7 +296,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   resize: vertical;
 }
 
@@ -319,7 +319,7 @@
 
 .empty-state p {
   color: var(--text-secondary);
-  font-size: 16px;
+  font-size: 17px;
 }
 
 /* Responsive */
@@ -349,4 +349,10 @@
   .modal-footer {
     padding: 16px;
   }
+}
+
+/* Bulk selection */
+.report-card--selected {
+  outline: 2px solid var(--primary, #4f46e5);
+  outline-offset: -2px;
 }

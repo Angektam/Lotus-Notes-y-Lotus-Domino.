@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import api from '../api/axios'
 import './Dashboard.css'
 
 function Dashboard() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState({
     reports: 0,
     totalHours: 0,
@@ -59,7 +60,7 @@ function Dashboard() {
         console.error('Sesión expirada');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        navigate('/login');
       } else {
         console.error('Error loading stats:', error);
       }

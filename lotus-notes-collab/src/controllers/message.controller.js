@@ -80,3 +80,17 @@ exports.markAsRead = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.deleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const message = await Message.findOne({
+      where: { id, [require('sequelize').Op.or]: [{ senderId: req.user.id }, { receiverId: req.user.id }] }
+    });
+    if (!message) return res.status(404).json({ error: 'Mensaje no encontrado' });
+    await message.destroy();
+    res.json({ message: 'Mensaje eliminado' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

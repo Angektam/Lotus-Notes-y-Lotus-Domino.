@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import './AdminDashboard.css';
 
 function AdminDashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalReports: 0,
     totalStudents: 0,
@@ -49,7 +50,7 @@ function AdminDashboard() {
         setError('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        setTimeout(() => window.location.href = '/login', 2000);
+        setTimeout(() => navigate('/login'), 2000);
       } else {
         setError('No se pudieron cargar las estadísticas. Verifica el servidor.');
       }
