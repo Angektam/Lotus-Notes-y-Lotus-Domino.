@@ -21,4 +21,8 @@ router.post('/reports/bulk-review', adminController.bulkReviewReports);
 router.get('/students', adminController.getAllStudents);
 router.get('/students/:id', adminController.getStudentDetail);
 
+// Gestión de usuarios
+router.get('/users', adminController.getAllUsers);
+router.put('/users/:id/status', adminController.updateUserStatus);
+
 module.exports = router;

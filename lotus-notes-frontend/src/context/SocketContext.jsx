@@ -13,6 +13,7 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
 
   useEffect(() => {
     const newSocket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000', {
@@ -43,6 +44,18 @@ export const SocketProvider = ({ children }) => {
       window.dispatchEvent(new CustomEvent('reportUpdate', { detail: report }));
     });
 
+    newSocket.on('userOnline', ({ userId }) => {
+      setOnlineUsers(prev => new Set([...prev, userId]));
+    });
+
+    newSocket.on('userOffline', ({ userId }) => {
+      setOnlineUsers(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    });
+
     setSocket(newSocket);
     return () => newSocket.close();
   }, []);
@@ -64,7 +77,7 @@ export const SocketProvider = ({ children }) => {
   };
 
   return (
-    <SocketContext.Provider value={{ socket, connected, notifications, connectSocket, disconnectSocket, requestNotificationPermission }}>
+    <SocketContext.Provider value={{ socket, connected, notifications, onlineUsers, connectSocket, disconnectSocket, requestNotificationPermission }}>
       {children}
     </SocketContext.Provider>
   );

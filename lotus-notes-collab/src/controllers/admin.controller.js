@@ -314,3 +314,31 @@ exports.getStudentDetail = async (req, res) => {
     });
   }
 };
+
+// Obtener todos los usuarios (admin)
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id','username','email','fullName','role','status','brigadistaProfile','supervisorProfile','createdAt'],
+      order: [['role','ASC'],['fullName','ASC']]
+    });
+    res.json({ success: true, data: users });
+  } catch(error) {
+    res.status(500).json({ success: false, message: 'Error', error: error.message });
+  }
+};
+
+// Actualizar estado de usuario (admin)
+exports.updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!['active','inactive','away'].includes(status)) return res.status(400).json({ success: false, message: 'Estado invalido' });
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    await user.update({ status });
+    res.json({ success: true, message: 'Estado actualizado', data: user });
+  } catch(error) {
+    res.status(500).json({ success: false, message: 'Error', error: error.message });
+  }
+};

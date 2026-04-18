@@ -51,6 +51,8 @@ function Layout({ onLogout, userRole }) {
             <>
               <li><Link to="/" className={isActive('/')}>📊 Dashboard</Link></li>
               <li><Link to="/admin/reports" className={isActive('/admin/reports')}>📋 Revisar Informes</Link></li>
+              <li><Link to="/admin/students" className={isActive('/admin/students')}>🎓 Estudiantes</Link></li>
+              <li><Link to="/admin/users" className={isActive('/admin/users')}>👤 Usuarios</Link></li>
               <li><Link to="/reports" className={isActive('/reports')}>📝 Mis Informes</Link></li>
               <li><Link to="/notes" className={isActive('/notes')}>📄 Notas</Link></li>
               <li><Link to="/tasks" className={isActive('/tasks')}>✓ Tareas</Link></li>

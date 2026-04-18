@@ -23,6 +23,7 @@ const initializeSocket = (server) => {
         userSockets.set(userId, socket.id);
         socket.userId = userId;
         socket.emit('authenticated', { success: true });
+        io.emit('userOnline', { userId });
         console.log(`✅ Socket autenticado: usuario ${userId}`);
       } catch (err) {
         socket.emit('authenticated', { success: false, error: 'Token inválido' });
@@ -34,6 +35,7 @@ const initializeSocket = (server) => {
     socket.on('disconnect', () => {
       if (socket.userId) {
         userSockets.delete(socket.userId);
+        io.emit('userOffline', { userId: socket.userId });
         console.log(`❌ Usuario ${socket.userId} desconectado`);
       }
     });
@@ -72,5 +74,6 @@ module.exports = {
   initializeSocket,
   sendNotificationToUser,
   sendReportUpdate,
-  broadcastToAll
+  broadcastToAll,
+  getOnlineUsers: () => Array.from(userSockets.keys())
 };

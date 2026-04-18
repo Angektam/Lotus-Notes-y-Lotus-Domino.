@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '../api/axios'
+import { useSocket } from '../context/SocketContext'
 import './AdminReports.css'
 
 const emptyForm = { username: '', email: '', password: '', fullName: '', zone: '', team: '', community: '' }
@@ -12,6 +13,7 @@ function SupervisorBrigadistas() {
   const [filters, setFilters] = useState({ search: '', community: '', groupBy: 'community' })
   const [form, setForm] = useState(emptyForm)
   const [formMsg, setFormMsg] = useState({ type: '', text: '' })
+  const { onlineUsers } = useSocket()
 
   useEffect(() => { loadBrigadistas() }, [])
 
@@ -116,9 +118,15 @@ function SupervisorBrigadistas() {
     const total = stats.total || 0
     const aprobado = stats.aprobado || 0
     const pct = total > 0 ? Math.round((aprobado / total) * 100) : 0
+    const isOnline = onlineUsers instanceof Set ? onlineUsers.has(b.id) : false
     return (
       <tr>
-        <td>{b.fullName || '-'}</td>
+        <td>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {isOnline && <span title="En línea" style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} />}
+            {b.fullName || '-'}
+          </span>
+        </td>
         <td>{b.username}</td>
         <td>{b.email}</td>
         <td>{b.brigadistaProfile?.zone || '-'}</td>

@@ -19,6 +19,8 @@ function BrigadistaReports() {
   const [reviewComments, setReviewComments] = useState('')
   const [fileToUpload, setFileToUpload] = useState(null)
 
+  const [showHistory, setShowHistory] = useState(false)
+
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
@@ -74,6 +76,18 @@ function BrigadistaReports() {
     setSelectedReport(null)
     setReviewComments('')
     setFileToUpload(null)
+    setShowHistory(false)
+  }
+
+  const printReport = () => {
+    const content = document.getElementById('report-print-content')
+    if (!content) return
+    const w = window.open('', '_blank')
+    w.document.write('<html><head><title>Reporte</title><style>body{font-family:Arial,sans-serif;padding:20px;} h2,h3,h4{color:#1a1a1a;} p{margin:4px 0;} .section{margin-bottom:16px;border-bottom:1px solid #eee;padding-bottom:12px;} table{width:100%;border-collapse:collapse;} td,th{border:1px solid #ddd;padding:8px;font-size:13px;}</style></head><body>')
+    w.document.write(content.innerHTML)
+    w.document.write('</body></html>')
+    w.document.close()
+    w.print()
   }
 
   const createReport = async () => {
@@ -325,12 +339,66 @@ function BrigadistaReports() {
             </div>
 
             <div className="modal-body">
+              <div id="report-print-content">
               <div className="report-full-details">
                 <h3>{selectedReport.title}</h3>
                 <p><strong>Estado:</strong> <span className={`badge ${statusBadge(selectedReport.status).class}`}>{statusBadge(selectedReport.status).text}</span></p>
                 <p><strong>Fecha límite:</strong> {selectedReport.dueDate ? new Date(selectedReport.dueDate).toLocaleDateString('es-MX') : '-'}</p>
                 <p><strong>Supervisor:</strong> {selectedReport.supervisor?.fullName || selectedReport.supervisor?.username || '-'}</p>
+                {selectedReport.description && <p><strong>Descripción:</strong> {selectedReport.description}</p>}
+                {Array.isArray(selectedReport.activities) && selectedReport.activities.length > 0 && (
+                  <div className="section" style={{ marginTop: 12 }}>
+                    <strong>Actividades</strong>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
+                      <thead><tr><th style={{ border: '1px solid #ddd', padding: 6, fontSize: 12 }}>Fecha</th><th style={{ border: '1px solid #ddd', padding: 6, fontSize: 12 }}>Lugar</th><th style={{ border: '1px solid #ddd', padding: 6, fontSize: 12 }}>Descripción</th><th style={{ border: '1px solid #ddd', padding: 6, fontSize: 12 }}>Hallazgos</th></tr></thead>
+                      <tbody>{selectedReport.activities.map((a, i) => (
+                        <tr key={i}><td style={{ border: '1px solid #ddd', padding: 6, fontSize: 12 }}>{a.date ? new Date(a.date).toLocaleDateString('es-MX') : '-'}</td><td style={{ border: '1px solid #ddd', padding: 6, fontSize: 12 }}>{a.location || '-'}</td><td style={{ border: '1px solid #ddd', padding: 6, fontSize: 12 }}>{a.description || '-'}</td><td style={{ border: '1px solid #ddd', padding: 6, fontSize: 12 }}>{a.findings || '-'}</td></tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                )}
+                {selectedReport.observations && <p style={{ marginTop: 8 }}><strong>Observaciones:</strong> {selectedReport.observations}</p>}
+                {Array.isArray(selectedReport.attachments) && selectedReport.attachments.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <strong>Adjuntos:</strong>
+                    <ul style={{ margin: '4px 0', paddingLeft: 20 }}>{selectedReport.attachments.map(att => <li key={att.id} style={{ fontSize: 13 }}>{att.originalName}</li>)}</ul>
+                  </div>
+                )}
               </div>
+              </div>
+
+              {/* Historial de workflow */}
+              {Array.isArray(selectedReport.workflowHistory) && selectedReport.workflowHistory.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ fontSize: 13, padding: '6px 14px' }}
+                    onClick={() => setShowHistory(h => !h)}
+                  >
+                    {showHistory ? 'Ocultar historial' : 'Ver historial'}
+                  </button>
+                  {showHistory && (
+                    <div style={{ marginTop: 12, paddingLeft: 8, borderLeft: '3px solid #e5e7eb' }}>
+                      {selectedReport.workflowHistory.map((entry, idx) => {
+                        const badge = statusBadge(entry.state)
+                        return (
+                          <div key={idx} style={{ position: 'relative', paddingLeft: 20, paddingBottom: 16 }}>
+                            <div style={{ position: 'absolute', left: -9, top: 4, width: 14, height: 14, borderRadius: '50%', background: '#6366f1', border: '2px solid #fff', boxShadow: '0 0 0 2px #6366f1' }} />
+                            <div style={{ fontSize: 12, color: '#718096', marginBottom: 2 }}>
+                              {entry.date ? new Date(entry.date).toLocaleString('es-MX') : '-'}
+                            </div>
+                            <span className={`badge ${badge.class}`} style={{ fontSize: 11 }}>{badge.text}</span>
+                            {entry.comments && (
+                              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#4a5568' }}>{entry.comments}</p>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {modalMsg.text && (
                 <div className={modalMsg.type === 'success' ? 'success-message' : 'error-message'} style={{ marginBottom: 12 }}>
@@ -448,6 +516,9 @@ function BrigadistaReports() {
 
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={closeModal} disabled={actionLoading}>Cerrar</button>
+              {(selectedReport.status === 'APROBADO' || selectedReport.status === 'ENVIADO') && (
+                <button className="btn btn-outline" onClick={printReport}>🖨️ Descargar PDF</button>
+              )}
               <button className="btn btn-primary" onClick={save} disabled={actionLoading || selectedReport.status === 'ENVIADO' || selectedReport.status === 'APROBADO'}>
                 {actionLoading ? 'Guardando...' : 'Guardar'}
               </button>

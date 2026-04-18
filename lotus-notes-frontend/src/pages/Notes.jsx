@@ -14,6 +14,8 @@ function Notes() {
   const [formData, setFormData] = useState(emptyForm)
   const [filters, setFilters] = useState({ priority: 'all', category: '', search: '' })
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [noteView, setNoteView] = useState('mine')
+  const [publicNotes, setPublicNotes] = useState([])
 
   useEffect(() => { loadNotes() }, [])
 
@@ -28,6 +30,25 @@ function Notes() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadPublicNotes = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await api.get('/notes/public')
+      setPublicNotes(response.data.notes || [])
+    } catch (err) {
+      if (err.response?.status !== 401) setError('No se pudieron cargar las notas públicas.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const switchView = (view) => {
+    setNoteView(view)
+    if (view === 'public') loadPublicNotes()
+    else loadNotes()
   }
 
   const openCreate = () => {
@@ -89,8 +110,24 @@ function Notes() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 style={{ color: '#333' }}>Mis Notas</h1>
-        <button className="btn btn-success" onClick={openCreate}>+ Nueva Nota</button>
+        <h1 style={{ color: '#333' }}>Notas</h1>
+        {noteView === 'mine' && <button className="btn btn-success" onClick={openCreate}>+ Nueva Nota</button>}
+      </div>
+
+      {/* Tab toggle */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <button
+          className={`btn ${noteView === 'mine' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => switchView('mine')}
+        >
+          📝 Mis Notas
+        </button>
+        <button
+          className={`btn ${noteView === 'public' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => switchView('public')}
+        >
+          🌐 Notas Públicas
+        </button>
       </div>
 
       {error && (
@@ -100,6 +137,34 @@ function Notes() {
         </div>
       )}
 
+      {noteView === 'public' ? (
+        loading ? (
+          <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
+            <p style={{ color: '#718096' }}>Cargando notas públicas...</p>
+          </div>
+        ) : publicNotes.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
+            <p style={{ fontSize: '18px', color: '#718096' }}>No hay notas públicas disponibles.</p>
+          </div>
+        ) : (
+          <div className="grid grid-2">
+            {publicNotes.map((note) => (
+              <div key={note.id} className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
+                  <h3>{note.title}</h3>
+                  <span className={`badge badge-${note.priority}`}>{PRIORITY_LABELS[note.priority] || note.priority}</span>
+                </div>
+                <p style={{ color: '#4a5568', marginBottom: '12px', whiteSpace: 'pre-wrap' }}>{note.content}</p>
+                {note.category && <span style={{ fontSize: '12px', color: '#718096', display: 'block', marginBottom: '4px' }}>📁 {note.category}</span>}
+                <span style={{ fontSize: '12px', color: '#718096' }}>
+                  👤 {note.author?.fullName || note.author?.username || 'Desconocido'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        <>
       {/* Filtros */}
       <div className="card" style={{ marginBottom: '16px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -170,6 +235,8 @@ function Notes() {
             </div>
           )}
         </>
+      )}
+      </>
       )}
 
       {/* Modal crear/editar */}

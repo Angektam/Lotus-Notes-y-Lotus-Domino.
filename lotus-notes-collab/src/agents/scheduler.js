@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const reminderAgent = require('./reminderAgent');
 const overdueAgent = require('./overdueAgent');
+const calendarReminderAgent = require('./calendarReminderAgent');
 
 // Inicializar agentes programados
 exports.initAgents = () => {
@@ -19,6 +20,9 @@ exports.initAgents = () => {
 
   // Alertas de vencimiento diarias a las 9:00 AM
   cron.schedule('0 9 * * *', () => safeRun('vencimientos', () => overdueAgent.run()));
+
+  // Recordatorios de calendario: cada minuto
+  cron.schedule('* * * * *', () => safeRun('calendario-recordatorios', () => calendarReminderAgent.run()));
 
   // Para desarrollo: ejecutar cada hora
   if (process.env.NODE_ENV === 'development') {

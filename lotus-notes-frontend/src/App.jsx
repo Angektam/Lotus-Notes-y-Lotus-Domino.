@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminReports from './pages/AdminReports'
 import AdminStudents from './pages/AdminStudents'
+import AdminUsers from './pages/AdminUsers'
 import SupervisorDashboard from './pages/SupervisorDashboard'
 import SupervisorBrigadistas from './pages/SupervisorBrigadistas'
 import SupervisorAssignReport from './pages/SupervisorAssignReport'
@@ -99,6 +100,9 @@ function App() {
             } />
             <Route path="admin/students" element={
               <RoleRoute allow={['admin', 'supervisor']}><AdminStudents /></RoleRoute>
+            } />
+            <Route path="admin/users" element={
+              <RoleRoute allow={['admin']}><AdminUsers /></RoleRoute>
             } />
 
             {/* Supervisor */}

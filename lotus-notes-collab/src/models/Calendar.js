@@ -35,6 +35,10 @@ const Calendar = sequelize.define('Calendar', {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },
+  notified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
   userId: {
     type: DataTypes.INTEGER,
     allowNull: false,
