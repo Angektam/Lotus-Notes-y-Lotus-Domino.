@@ -24,7 +24,25 @@ function BrigadistaReports() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
-  const [newReport, setNewReport] = useState({ title: '', description: '', dueDate: '', periodStart: '', periodEnd: '' })
+  const emptyNew = {
+    // Encabezado
+    lugar: 'Los Mochis, Sinaloa', fecha: new Date().toISOString().split('T')[0],
+    // Datos del brigadista
+    unidadAcademica: '', licenciatura: '', numeroCuenta: '', nombreBrigadista: '',
+    // Datos unidad receptora
+    unidadReceptora: '', projectName: '', modalidad: 'Multidisciplinaria',
+    // Periodo e informe
+    periodStart: '', periodEnd: '', dueDate: '', numInforme: '', totalHours: '',
+    // Secciones
+    objectives: [{ objective: '', goals: '', activities: '' }],
+    resultados: '',
+    participants: [{ activity: '', count: '' }],
+    observations: '',
+    evidences: [{ descripcion: '' }],
+    // Título auto
+    title: ''
+  }
+  const [newReport, setNewReport] = useState(emptyNew)
 
   useEffect(() => {
     loadReports()
@@ -92,17 +110,42 @@ function BrigadistaReports() {
 
   const createReport = async () => {
     setCreateError('')
-    if (!newReport.title.trim()) { setCreateError('El título es obligatorio'); return }
+    if (!newReport.unidadReceptora.trim()) { setCreateError('El nombre de la unidad receptora es obligatorio'); return }
+    if (!newReport.projectName.trim()) { setCreateError('El nombre del proyecto es obligatorio'); return }
     if (!newReport.dueDate) { setCreateError('La fecha límite es obligatoria'); return }
     if (newReport.dueDate < today) { setCreateError('La fecha límite no puede ser en el pasado'); return }
     if (newReport.periodStart && newReport.periodEnd && newReport.periodEnd < newReport.periodStart) {
       setCreateError('La fecha de fin del período no puede ser anterior al inicio'); return
     }
+
+    const title = newReport.title.trim() ||
+      `${newReport.projectName} — Informe ${newReport.numInforme || ''}`.trim()
+
     setCreating(true)
     try {
-      await api.post('/brigadista/reports', newReport)
+      await api.post('/brigadista/reports', {
+        title,
+        description: newReport.resultados,
+        dueDate: newReport.dueDate,
+        periodStart: newReport.periodStart,
+        periodEnd: newReport.periodEnd,
+        lugar: newReport.lugar,
+        fecha: newReport.fecha,
+        unidadAcademica: newReport.unidadAcademica,
+        licenciatura: newReport.licenciatura,
+        numeroCuenta: newReport.numeroCuenta,
+        unidadReceptora: newReport.unidadReceptora,
+        projectName: newReport.projectName,
+        modalidad: newReport.modalidad,
+        numInforme: newReport.numInforme,
+        totalHours: parseInt(newReport.totalHours) || 0,
+        objectives: newReport.objectives.filter(o => o.objective.trim()),
+        participants: newReport.participants.filter(p => p.activity.trim()),
+        observations: newReport.observations,
+        evidences: newReport.evidences.filter(e => e.descripcion.trim()).map(e => e.descripcion)
+      })
       setShowCreateModal(false)
-      setNewReport({ title: '', description: '', dueDate: '', periodStart: '', periodEnd: '' })
+      setNewReport(emptyNew)
       setPageMsg({ type: 'success', text: 'Reporte creado exitosamente' })
       setTimeout(() => setPageMsg({ type: '', text: '' }), 4000)
       loadReports()
@@ -288,36 +331,197 @@ function BrigadistaReports() {
 
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: 780 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Nuevo Reporte</h2>
+              <h2>Nuevo Informe Mensual</h2>
               <button className="btn-close" onClick={() => setShowCreateModal(false)}>✕</button>
             </div>
             <div className="modal-body">
               {createError && <div className="error-message" style={{ marginBottom: 12 }}>{createError}</div>}
-              <div className="review-section">
-                <label>Título *</label>
-                <input value={newReport.title} onChange={(e) => setNewReport({ ...newReport, title: e.target.value })} placeholder="Título del reporte" />
-              </div>
-              <div className="review-section">
-                <label>Descripción</label>
-                <textarea value={newReport.description} onChange={(e) => setNewReport({ ...newReport, description: e.target.value })} rows="3" placeholder="Descripción del reporte..." />
-              </div>
-              <div className="grid grid-2">
-                <div className="review-section">
-                  <label>Fecha límite *</label>
-                  <input type="date" value={newReport.dueDate} min={today} onChange={(e) => setNewReport({ ...newReport, dueDate: e.target.value })} />
+
+              {/* Encabezado */}
+              <div style={{ background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                <div className="grid grid-2">
+                  <div className="review-section">
+                    <label>Lugar</label>
+                    <input value={newReport.lugar} onChange={e => setNewReport({ ...newReport, lugar: e.target.value })} placeholder="Ej. Los Mochis, Sinaloa" />
+                  </div>
+                  <div className="review-section">
+                    <label>Fecha</label>
+                    <input type="date" value={newReport.fecha} onChange={e => setNewReport({ ...newReport, fecha: e.target.value })} />
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-2">
-                <div className="review-section">
-                  <label>Inicio del período</label>
-                  <input type="date" value={newReport.periodStart} onChange={(e) => setNewReport({ ...newReport, periodStart: e.target.value })} />
+
+              {/* I. Datos del Brigadista */}
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', borderBottom: '2px solid #1e3a5f', paddingBottom: 6, marginBottom: 14 }}>
+                  I. Datos del Brigadista
+                </h3>
+                <div className="grid grid-2">
+                  <div className="review-section">
+                    <label>Unidad Académica</label>
+                    <input value={newReport.unidadAcademica} onChange={e => setNewReport({ ...newReport, unidadAcademica: e.target.value })} placeholder="Ej. Facultad de Ingeniería Mochis" />
+                  </div>
+                  <div className="review-section">
+                    <label>Licenciatura</label>
+                    <input value={newReport.licenciatura} onChange={e => setNewReport({ ...newReport, licenciatura: e.target.value })} placeholder="Ej. Ingeniería de Software" />
+                  </div>
+                  <div className="review-section">
+                    <label>Número de Cuenta</label>
+                    <input value={newReport.numeroCuenta} onChange={e => setNewReport({ ...newReport, numeroCuenta: e.target.value })} placeholder="Ej. 2115164-4" />
+                  </div>
+                  <div className="review-section">
+                    <label>Nombre del Brigadista</label>
+                    <input value={newReport.nombreBrigadista} onChange={e => setNewReport({ ...newReport, nombreBrigadista: e.target.value })} placeholder="Nombre completo" />
+                  </div>
                 </div>
-                <div className="review-section">
-                  <label>Fin del período</label>
-                  <input type="date" value={newReport.periodEnd} min={newReport.periodStart || undefined} onChange={(e) => setNewReport({ ...newReport, periodEnd: e.target.value })} />
+              </div>
+
+              {/* II. Datos de la Unidad Receptora */}
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', borderBottom: '2px solid #1e3a5f', paddingBottom: 6, marginBottom: 14 }}>
+                  II. Datos de la Unidad Receptora
+                </h3>
+                <div className="grid grid-2">
+                  <div className="review-section" style={{ gridColumn: '1 / -1' }}>
+                    <label>Nombre de la Unidad Receptora *</label>
+                    <input value={newReport.unidadReceptora} onChange={e => setNewReport({ ...newReport, unidadReceptora: e.target.value })} placeholder="Ej. Módulo de Atención Comunitario Paredones" required />
+                  </div>
+                  <div className="review-section" style={{ gridColumn: '1 / -1' }}>
+                    <label>Nombre del Proyecto *</label>
+                    <input value={newReport.projectName} onChange={e => setNewReport({ ...newReport, projectName: e.target.value })} placeholder="Ej. Inclusión Social Comunitaria" required />
+                  </div>
+                  <div className="review-section">
+                    <label>Modalidad</label>
+                    <select value={newReport.modalidad} onChange={e => setNewReport({ ...newReport, modalidad: e.target.value })}>
+                      <option value="Multidisciplinaria">Multidisciplinaria</option>
+                      <option value="Individual">Individual</option>
+                      <option value="Comunitaria">Comunitaria</option>
+                    </select>
+                  </div>
+                  <div className="review-section">
+                    <label>Número de Informe</label>
+                    <input type="number" min="1" value={newReport.numInforme} onChange={e => setNewReport({ ...newReport, numInforme: e.target.value })} placeholder="Ej. 2" />
+                  </div>
+                  <div className="review-section">
+                    <label>Período — Inicio</label>
+                    <input type="date" value={newReport.periodStart} onChange={e => setNewReport({ ...newReport, periodStart: e.target.value })} />
+                  </div>
+                  <div className="review-section">
+                    <label>Período — Fin</label>
+                    <input type="date" value={newReport.periodEnd} min={newReport.periodStart || undefined} onChange={e => setNewReport({ ...newReport, periodEnd: e.target.value })} />
+                  </div>
+                  <div className="review-section">
+                    <label>Horas reportadas</label>
+                    <input type="number" min="0" value={newReport.totalHours} onChange={e => setNewReport({ ...newReport, totalHours: e.target.value })} placeholder="Ej. 60" />
+                  </div>
+                  <div className="review-section">
+                    <label>Fecha límite de entrega *</label>
+                    <input type="date" value={newReport.dueDate} min={today} onChange={e => setNewReport({ ...newReport, dueDate: e.target.value })} required />
+                  </div>
                 </div>
+              </div>
+
+              {/* III. Objetivos, Metas y Actividades */}
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', borderBottom: '2px solid #1e3a5f', paddingBottom: 6, marginBottom: 14 }}>
+                  III. Objetivo, Metas y Actividades
+                </h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: '#1e3a5f', color: 'white' }}>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', width: '33%' }}>Objetivo específico</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', width: '33%' }}>Metas</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', width: '33%' }}>Actividades</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {newReport.objectives.map((obj, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: 6 }}><textarea rows={2} style={{ width: '100%', fontSize: 13, resize: 'vertical', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }} value={obj.objective} onChange={e => { const o = [...newReport.objectives]; o[idx].objective = e.target.value; setNewReport({ ...newReport, objectives: o }) }} /></td>
+                        <td style={{ padding: 6 }}><textarea rows={2} style={{ width: '100%', fontSize: 13, resize: 'vertical', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }} value={obj.goals} onChange={e => { const o = [...newReport.objectives]; o[idx].goals = e.target.value; setNewReport({ ...newReport, objectives: o }) }} /></td>
+                        <td style={{ padding: 6, display: 'flex', gap: 4 }}>
+                          <textarea rows={2} style={{ flex: 1, fontSize: 13, resize: 'vertical', border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }} value={obj.activities} onChange={e => { const o = [...newReport.objectives]; o[idx].activities = e.target.value; setNewReport({ ...newReport, objectives: o }) }} />
+                          {newReport.objectives.length > 1 && <button type="button" onClick={() => setNewReport({ ...newReport, objectives: newReport.objectives.filter((_, i) => i !== idx) })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 16, alignSelf: 'flex-start' }}>✕</button>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button type="button" className="btn btn-outline" style={{ marginTop: 8, fontSize: 13 }}
+                  onClick={() => setNewReport({ ...newReport, objectives: [...newReport.objectives, { objective: '', goals: '', activities: '' }] })}>
+                  + Agregar fila
+                </button>
+              </div>
+
+              {/* IV. Resultados obtenidos */}
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', borderBottom: '2px solid #1e3a5f', paddingBottom: 6, marginBottom: 14 }}>
+                  IV. Resultados obtenidos
+                </h3>
+                <textarea rows={5} style={{ width: '100%', fontSize: 14, border: '1px solid #e5e7eb', borderRadius: 6, padding: 10, resize: 'vertical' }}
+                  value={newReport.resultados} onChange={e => setNewReport({ ...newReport, resultados: e.target.value })}
+                  placeholder="Describe los resultados obtenidos durante el período..." />
+              </div>
+
+              {/* V. Participantes y/o beneficiados */}
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', borderBottom: '2px solid #1e3a5f', paddingBottom: 6, marginBottom: 14 }}>
+                  V. Participantes y/o Beneficiados
+                </h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: '#1e3a5f', color: 'white' }}>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', width: '70%' }}>Actividades</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left' }}>No. de participantes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {newReport.participants.map((p, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                        <td style={{ padding: 6 }}><input style={{ width: '100%', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }} value={p.activity} onChange={e => { const ps = [...newReport.participants]; ps[idx].activity = e.target.value; setNewReport({ ...newReport, participants: ps }) }} /></td>
+                        <td style={{ padding: 6, display: 'flex', gap: 4 }}>
+                          <input type="number" min="0" style={{ width: '80px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4, padding: 4 }} value={p.count} onChange={e => { const ps = [...newReport.participants]; ps[idx].count = e.target.value; setNewReport({ ...newReport, participants: ps }) }} />
+                          {newReport.participants.length > 1 && <button type="button" onClick={() => setNewReport({ ...newReport, participants: newReport.participants.filter((_, i) => i !== idx) })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 16 }}>✕</button>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button type="button" className="btn btn-outline" style={{ marginTop: 8, fontSize: 13 }}
+                  onClick={() => setNewReport({ ...newReport, participants: [...newReport.participants, { activity: '', count: '' }] })}>
+                  + Agregar fila
+                </button>
+              </div>
+
+              {/* VI. Observaciones */}
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', borderBottom: '2px solid #1e3a5f', paddingBottom: 6, marginBottom: 14 }}>
+                  VI. Observaciones
+                </h3>
+                <textarea rows={4} style={{ width: '100%', fontSize: 14, border: '1px solid #e5e7eb', borderRadius: 6, padding: 10, resize: 'vertical' }}
+                  value={newReport.observations} onChange={e => setNewReport({ ...newReport, observations: e.target.value })}
+                  placeholder="Observaciones generales del período..." />
+              </div>
+
+              {/* VII. Evidencias */}
+              <div style={{ marginBottom: 8 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e3a5f', borderBottom: '2px solid #1e3a5f', paddingBottom: 6, marginBottom: 14 }}>
+                  VII. Evidencias de trabajo
+                </h3>
+                {newReport.evidences.map((ev, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <input style={{ flex: 1, fontSize: 14, border: '1px solid #e5e7eb', borderRadius: 6, padding: '8px 10px' }}
+                      value={ev.descripcion} onChange={e => { const evs = [...newReport.evidences]; evs[idx].descripcion = e.target.value; setNewReport({ ...newReport, evidences: evs }) }}
+                      placeholder={`Descripción de evidencia ${idx + 1}`} />
+                    {newReport.evidences.length > 1 && <button type="button" onClick={() => setNewReport({ ...newReport, evidences: newReport.evidences.filter((_, i) => i !== idx) })} className="btn btn-danger" style={{ padding: '6px 10px' }}>✕</button>}
+                  </div>
+                ))}
+                <button type="button" className="btn btn-outline" style={{ fontSize: 13 }}
+                  onClick={() => setNewReport({ ...newReport, evidences: [...newReport.evidences, { descripcion: '' }] })}>
+                  + Agregar evidencia
+                </button>
               </div>
             </div>
             <div className="modal-footer">

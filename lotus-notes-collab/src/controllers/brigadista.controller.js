@@ -58,7 +58,13 @@ exports.updateMyProfile = async (req, res) => {
 // Crear reporte propio (brigadista)
 exports.createReport = async (req, res) => {
   try {
-    const { title, description, dueDate, periodStart, periodEnd } = req.body;
+    const {
+      title, description, dueDate, periodStart, periodEnd,
+      // Campos del formato oficial
+      lugar, fecha, unidadAcademica, licenciatura, numeroCuenta,
+      unidadReceptora, projectName, modalidad, numInforme, totalHours,
+      objectives, participants, observations, evidences
+    } = req.body;
 
     if (!title || !dueDate) {
       return res.status(400).json({ success: false, message: 'Título y fecha límite son obligatorios' });
@@ -73,11 +79,29 @@ exports.createReport = async (req, res) => {
       description: description || '',
       periodStart: periodStart || null,
       periodEnd: periodEnd || null,
+      // Campos del formato oficial
+      studentName: req.user.fullName,
+      academicUnit: unidadAcademica || '',
+      career: licenciatura || '',
+      accountNumber: numeroCuenta || '',
+      dependencyName: unidadReceptora || '',
+      projectName: projectName || '',
+      totalHours: totalHours || 0,
+      objectives: objectives || [],
+      participants: participants || [],
+      observations: observations || '',
+      evidences: evidences || [],
+      reportMonth: fecha ? new Date(fecha).toLocaleString('es', { month: 'long' }) : '',
+      reportYear: fecha ? new Date(fecha).getFullYear() : new Date().getFullYear(),
       status: 'EN_ELABORACION',
       brigadistaInfo: {
         name: req.user.fullName,
         zone: req.user.brigadistaProfile?.zone || '',
-        team: req.user.brigadistaProfile?.team || ''
+        team: req.user.brigadistaProfile?.team || '',
+        community: req.user.brigadistaProfile?.community || '',
+        lugar: lugar || '',
+        modalidad: modalidad || '',
+        numInforme: numInforme || ''
       },
       workflowHistory: [{ state: 'EN_ELABORACION', date: new Date(), by: req.user.id, comments: 'Reporte creado por brigadista' }],
       auditTrail: [{ action: 'CREATE', by: req.user.id, date: new Date(), details: 'Reporte creado por brigadista' }]
@@ -179,7 +203,9 @@ exports.getReportById = async (req, res) => {
 exports.updateReport = async (req, res) => {
   try {
     const { id } = req.params;
-    const { description, activities, observations, brigadistaInfo } = req.body;
+    const { description, activities, observations, brigadistaInfo,
+      unidadAcademica, licenciatura, numeroCuenta, unidadReceptora,
+      projectName, totalHours, objectives, participants, evidences } = req.body;
 
     const report = await Report.findOne({
       where: {
@@ -221,6 +247,15 @@ exports.updateReport = async (req, res) => {
       activities,
       observations,
       brigadistaInfo: brigadistaInfo || report.brigadistaInfo,
+      academicUnit: unidadAcademica ?? report.academicUnit,
+      career: licenciatura ?? report.career,
+      accountNumber: numeroCuenta ?? report.accountNumber,
+      dependencyName: unidadReceptora ?? report.dependencyName,
+      projectName: projectName ?? report.projectName,
+      totalHours: totalHours ?? report.totalHours,
+      objectives: objectives ?? report.objectives,
+      participants: participants ?? report.participants,
+      evidences: evidences ?? report.evidences,
       status: newStatus,
       version: report.version + 1,
       workflowHistory: workflowUpdate,

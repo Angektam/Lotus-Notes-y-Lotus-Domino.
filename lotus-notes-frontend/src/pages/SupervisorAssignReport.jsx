@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../api/axios'
 import './AdminReports.css'
 
@@ -9,9 +9,12 @@ function SupervisorAssignReport() {
   const [brigadistas, setBrigadistas] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [parsing, setParsing] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [formError, setFormError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
+  const [parsedExtra, setParsedExtra] = useState(null) // datos extra del doc
+  const fileRef = useRef()
 
   useEffect(() => { loadBrigadistas() }, [])
 
@@ -20,11 +23,63 @@ function SupervisorAssignReport() {
       const res = await api.get('/supervisor/brigadistas')
       setBrigadistas(res.data.data || [])
     } catch (error) {
-      console.error('Error al cargar brigadistas:', error)
       setFormError('No se pudieron cargar los brigadistas')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDocUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const allowed = ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'application/pdf']
+    if (!allowed.includes(file.type) && !file.name.match(/\.(docx|doc|pdf)$/i)) {
+      setFormError('Solo se aceptan archivos DOCX, DOC o PDF')
+      fileRef.current.value = ''
+      return
+    }
+
+    setParsing(true)
+    setFormError('')
+    try {
+      const fd = new FormData()
+      fd.append('document', file)
+      const res = await api.post('/supervisor/parse-report', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      const d = res.data.data
+
+      // Pre-llenar el formulario con los datos extraídos
+      setForm(prev => ({
+        ...prev,
+        title: d.title || prev.title,
+        description: d.description || prev.description,
+        periodStart: d.periodStart || prev.periodStart,
+        periodEnd: d.periodEnd || prev.periodEnd,
+        // Si el nombre del brigadista coincide con alguno, seleccionarlo
+        brigadistaId: prev.brigadistaId || matchBrigadista(d.nombreBrigadista)
+      }))
+
+      setParsedExtra(d)
+      setSuccessMsg('Documento procesado. Revisa y completa los campos.')
+      setTimeout(() => setSuccessMsg(''), 5000)
+    } catch (err) {
+      setFormError(err.response?.data?.message || 'Error al procesar el documento')
+    } finally {
+      setParsing(false)
+      fileRef.current.value = ''
+    }
+  }
+
+  const matchBrigadista = (nombre) => {
+    if (!nombre) return ''
+    const n = nombre.toLowerCase()
+    const found = brigadistas.find(b =>
+      (b.fullName || '').toLowerCase().includes(n) ||
+      n.includes((b.fullName || '').toLowerCase())
+    )
+    return found ? String(found.id) : ''
   }
 
   const submit = async (e) => {
@@ -45,6 +100,7 @@ function SupervisorAssignReport() {
       await api.post('/supervisor/reports/assign', { ...form, brigadistaId: Number(form.brigadistaId) })
       setSuccessMsg('Reporte asignado exitosamente')
       setForm(emptyForm)
+      setParsedExtra(null)
       setTimeout(() => setSuccessMsg(''), 4000)
     } catch (error) {
       setFormError(error.response?.data?.message || error.response?.data?.error || 'Error al asignar reporte')
@@ -68,6 +124,52 @@ function SupervisorAssignReport() {
       )}
       {successMsg && <div className="success-message" style={{ marginBottom: 16 }}>{successMsg}</div>}
 
+      {/* Zona de carga de documento */}
+      <div className="card" style={{ marginBottom: 20, background: '#f8fafc', border: '2px dashed #cbd5e1' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontWeight: 600, margin: '0 0 4px', fontSize: 15 }}>
+              📄 Importar desde documento
+            </p>
+            <p style={{ margin: 0, color: '#718096', fontSize: 14 }}>
+              Sube un DOCX o PDF con el formato del informe y se pre-llenará el formulario automáticamente.
+            </p>
+          </div>
+          <label className={`btn btn-outline ${parsing ? 'disabled' : ''}`} style={{ cursor: parsing ? 'not-allowed' : 'pointer', flexShrink: 0 }}>
+            {parsing ? '⏳ Procesando...' : '📂 Subir documento'}
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".docx,.doc,.pdf"
+              onChange={handleDocUpload}
+              disabled={parsing}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+
+        {/* Vista previa de datos extraídos */}
+        {parsedExtra && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
+            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, color: '#374151' }}>
+              ✅ Datos extraídos del documento:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8, fontSize: 13 }}>
+              {parsedExtra.nombreBrigadista && <div><span style={{ color: '#718096' }}>Brigadista:</span> <strong>{parsedExtra.nombreBrigadista}</strong></div>}
+              {parsedExtra.unidadAcademica && <div><span style={{ color: '#718096' }}>Unidad Académica:</span> <strong>{parsedExtra.unidadAcademica}</strong></div>}
+              {parsedExtra.licenciatura && <div><span style={{ color: '#718096' }}>Licenciatura:</span> <strong>{parsedExtra.licenciatura}</strong></div>}
+              {parsedExtra.numeroCuenta && <div><span style={{ color: '#718096' }}>No. Cuenta:</span> <strong>{parsedExtra.numeroCuenta}</strong></div>}
+              {parsedExtra.unidadReceptora && <div><span style={{ color: '#718096' }}>Unidad Receptora:</span> <strong>{parsedExtra.unidadReceptora}</strong></div>}
+              {parsedExtra.proyecto && <div><span style={{ color: '#718096' }}>Proyecto:</span> <strong>{parsedExtra.proyecto}</strong></div>}
+              {parsedExtra.numInforme && <div><span style={{ color: '#718096' }}>No. Informe:</span> <strong>{parsedExtra.numInforme}</strong></div>}
+              {parsedExtra.horas > 0 && <div><span style={{ color: '#718096' }}>Horas:</span> <strong>{parsedExtra.horas}</strong></div>}
+              {parsedExtra.lugar && <div><span style={{ color: '#718096' }}>Lugar:</span> <strong>{parsedExtra.lugar}</strong></div>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Formulario */}
       <div className="card">
         <form onSubmit={submit} className="grid grid-2">
           <div style={{ gridColumn: '1 / -1' }}>
@@ -86,12 +188,14 @@ function SupervisorAssignReport() {
 
           <div style={{ gridColumn: '1 / -1' }}>
             <label>Título *</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ej. Reporte de inspección semanal" required />
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Ej. Informe de Servicio Social No. 4" required />
           </div>
 
           <div style={{ gridColumn: '1 / -1' }}>
-            <label>Descripción</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Instrucciones / alcance del reporte..." rows={4} />
+            <label>Descripción / Instrucciones</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Instrucciones, alcance, resultados esperados..." rows={5} />
           </div>
 
           <div>
@@ -109,6 +213,11 @@ function SupervisorAssignReport() {
           </div>
 
           <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            {parsedExtra && (
+              <button type="button" className="btn btn-secondary" onClick={() => { setForm(emptyForm); setParsedExtra(null) }}>
+                Limpiar
+              </button>
+            )}
             <button type="submit" className="btn btn-primary" disabled={submitting || loading}>
               {submitting ? 'Asignando...' : 'Asignar reporte'}
             </button>
@@ -120,4 +229,3 @@ function SupervisorAssignReport() {
 }
 
 export default SupervisorAssignReport
-

@@ -1,8 +1,17 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const os = require('os');
 const supervisorController = require('../controllers/supervisor.controller');
+const docParserController = require('../controllers/docParser.controller');
 const authenticate = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
+
+// Multer temporal para parseo de documentos
+const uploadTemp = multer({ dest: os.tmpdir(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// Parsear documento DOCX/PDF para pre-llenar formulario
+router.post('/parse-report', authenticate, checkRole('supervisor', 'admin'), uploadTemp.single('document'), docParserController.parseReport);
 
 // Gestión de brigadistas
 router.post('/brigadistas', authenticate, checkRole('supervisor', 'admin'), supervisorController.registerBrigadista);
