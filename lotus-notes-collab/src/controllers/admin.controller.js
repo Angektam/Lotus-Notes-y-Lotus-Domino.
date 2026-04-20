@@ -332,12 +332,18 @@ exports.getAllUsers = async (req, res) => {
 exports.updateUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-    if (!['active','inactive','away'].includes(status)) return res.status(400).json({ success: false, message: 'Estado invalido' });
+    const { status, role } = req.body;
+    if (status && !['active','inactive','away'].includes(status))
+      return res.status(400).json({ success: false, message: 'Estado invalido' });
+    if (role && !['admin','supervisor','brigadista','student'].includes(role))
+      return res.status(400).json({ success: false, message: 'Rol invalido' });
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-    await user.update({ status });
-    res.json({ success: true, message: 'Estado actualizado', data: user });
+    const updates = {};
+    if (status) updates.status = status;
+    if (role) updates.role = role;
+    await user.update(updates);
+    res.json({ success: true, message: 'Usuario actualizado', data: user });
   } catch(error) {
     res.status(500).json({ success: false, message: 'Error', error: error.message });
   }

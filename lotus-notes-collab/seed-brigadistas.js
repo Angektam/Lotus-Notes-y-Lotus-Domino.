@@ -29,8 +29,14 @@ async function seed(){
         sup=await User.create({username:com.supervisor.username,email:com.supervisor.email,password:com.supervisor.password,fullName:com.supervisor.fullName,role:"supervisor",department:com.nombre,supervisorProfile:{managedZones:[com.zona],department:com.nombre,community:com.nombre}});
         console.log("  Supervisor creado: "+sup.fullName);
       } else {
-        await sup.update({supervisorProfile:{...sup.supervisorProfile,community:com.nombre}});
-        console.log("  Supervisor actualizado: "+sup.fullName);
+        // Actualizar community Y resetear contraseña usando SQL directo para que bcrypt se aplique
+        const bcrypt = require('bcryptjs');
+        const hash = await bcrypt.hash(com.supervisor.password, 10);
+        await require('sequelize').default ? null : null; // no-op
+        await User.sequelize.query('UPDATE Users SET password = ?, supervisorProfile = ? WHERE id = ?', {
+          replacements: [hash, JSON.stringify({...sup.supervisorProfile, community: com.nombre}), sup.id]
+        });
+        console.log("  Supervisor actualizado + password reset: "+sup.fullName);
       }
       for(let i=0;i<com.brigadistas.length;i++){
         const nombre=com.brigadistas[i];

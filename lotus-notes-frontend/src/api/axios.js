@@ -23,7 +23,8 @@ api.interceptors.response.use(
       if (currentPath !== '/login') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        // Dispara el listener de storage en App.jsx para redirigir sin recargar
+        window.dispatchEvent(new Event('storage'));
       }
     }
     return Promise.reject(error);

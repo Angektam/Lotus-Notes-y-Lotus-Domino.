@@ -11,7 +11,7 @@ function Gallery() {
   const [success, setSuccess] = useState('')
   const fileRef = useRef()
 
-  const BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+  const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace('/api', '')
 
   const fetchImages = async () => {
     try {

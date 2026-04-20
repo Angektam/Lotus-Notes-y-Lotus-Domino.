@@ -5,6 +5,7 @@ import './AdminReports.css'
 const ROLE_LABELS = { admin: 'Admin', supervisor: 'Supervisor', brigadista: 'Brigadista', student: 'Estudiante' }
 const TABS = ['Todos', 'Supervisores', 'Brigadistas', 'Estudiantes']
 const TAB_ROLES = { Todos: null, Supervisores: 'supervisor', Brigadistas: 'brigadista', Estudiantes: 'student' }
+const ROLES = ['admin', 'supervisor', 'brigadista', 'student']
 
 function AdminUsers() {
   const [users, setUsers] = useState([])
@@ -13,6 +14,7 @@ function AdminUsers() {
   const [search, setSearch] = useState('')
   const [pageMsg, setPageMsg] = useState({ type: '', text: '' })
   const [togglingId, setTogglingId] = useState(null)
+  const [changingRoleId, setChangingRoleId] = useState(null)
 
   useEffect(() => { loadUsers() }, [])
 
@@ -40,6 +42,20 @@ function AdminUsers() {
       setPageMsg({ type: 'error', text: err.response?.data?.message || 'Error al actualizar estado' })
     } finally {
       setTogglingId(null)
+    }
+  }
+
+  const changeRole = async (userId, newRole) => {
+    setChangingRoleId(userId)
+    try {
+      await api.put(`/admin/users/${userId}/status`, { role: newRole })
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+      setPageMsg({ type: 'success', text: 'Rol actualizado' })
+      setTimeout(() => setPageMsg({ type: '', text: '' }), 3000)
+    } catch (err) {
+      setPageMsg({ type: 'error', text: err.response?.data?.message || 'Error al cambiar rol' })
+    } finally {
+      setChangingRoleId(null)
     }
   }
 
@@ -134,7 +150,16 @@ function AdminUsers() {
                     <td>{u.fullName || '-'}</td>
                     <td>{u.username}</td>
                     <td>{u.email}</td>
-                    <td><span className="badge badge-primary" style={{ fontSize: 11 }}>{ROLE_LABELS[u.role] || u.role}</span></td>
+                    <td>
+                      <select
+                        value={u.role}
+                        disabled={changingRoleId === u.id}
+                        onChange={(e) => changeRole(u.id, e.target.value)}
+                        style={{ width: 'auto', fontSize: 13, padding: '4px 8px' }}
+                      >
+                        {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                      </select>
+                    </td>
                     <td>{getCommunity(u)}</td>
                     <td>
                       <span className={`badge ${u.status === 'active' ? 'badge-success' : 'badge-secondary'}`}>

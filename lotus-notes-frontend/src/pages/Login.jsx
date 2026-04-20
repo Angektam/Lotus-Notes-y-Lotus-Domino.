@@ -14,6 +14,7 @@ function Login({ onLogin }) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loginField, setLoginField] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -139,14 +140,26 @@ function Login({ onLogin }) {
             />
           )}
           
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              placeholder="Contraseña"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              style={{ paddingRight: '44px' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#718096', padding: 0 }}
+              tabIndex={-1}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
           
           <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
             {submitting ? 'Cargando...' : (isRegister ? 'Registrarse' : 'Iniciar Sesión')}
