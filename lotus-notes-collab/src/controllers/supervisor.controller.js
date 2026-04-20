@@ -125,7 +125,68 @@ exports.getBrigadistas = async (req, res) => {
   }
 };
 
-// Asignar reporte a brigadista
+// Asignar reporte a MÚLTIPLES brigadistas
+exports.assignReportBulk = async (req, res) => {
+  try {
+    const { brigadistaIds, title, description, dueDate, periodStart, periodEnd } = req.body;
+
+    if (!Array.isArray(brigadistaIds) || brigadistaIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Debes seleccionar al menos un brigadista' });
+    }
+    if (!title || !dueDate) {
+      return res.status(400).json({ success: false, message: 'Título y fecha límite son obligatorios' });
+    }
+
+    const results = { success: [], failed: [] };
+
+    for (const brigadistaId of brigadistaIds) {
+      try {
+        const brigadista = await User.findOne({ where: { id: brigadistaId, role: 'brigadista' } });
+        if (!brigadista) { results.failed.push(brigadistaId); continue; }
+
+        const report = await Report.create({
+          assignedTo: brigadistaId,
+          assignedBy: req.user.id,
+          assignedDate: new Date(),
+          dueDate, title, description, periodStart, periodEnd,
+          status: REPORT_STATUS.ASIGNADO,
+          brigadistaInfo: {
+            name: brigadista.fullName,
+            zone: brigadista.brigadistaProfile?.zone || '',
+            team: brigadista.brigadistaProfile?.team || '',
+            community: brigadista.brigadistaProfile?.community || ''
+          },
+          workflowHistory: [{ state: REPORT_STATUS.ASIGNADO, date: new Date(), by: req.user.id, comments: 'Reporte asignado' }],
+          auditTrail: [{ action: 'CREATE', by: req.user.id, date: new Date(), details: 'Reporte creado y asignado en lote' }]
+        });
+
+        await createAndSendNotification({
+          userId: brigadistaId,
+          type: 'REPORT_ASSIGNED',
+          title: 'Nuevo reporte asignado',
+          message: `Se te ha asignado el reporte: ${title}`,
+          relatedReportId: report.id,
+          priority: 'MEDIUM'
+        });
+
+        results.success.push({ brigadistaId, reportId: report.id, name: brigadista.fullName });
+      } catch {
+        results.failed.push(brigadistaId);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `${results.success.length} reporte(s) asignado(s)${results.failed.length ? `, ${results.failed.length} fallaron` : ''}`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error al asignar reportes en lote:', error);
+    res.status(500).json({ success: false, message: 'Error al asignar reportes', error: error.message });
+  }
+};
+
+// Asignar reporte a UN brigadista
 exports.assignReport = async (req, res) => {
   try {
     const { brigadistaId, title, description, dueDate, periodStart, periodEnd } = req.body;

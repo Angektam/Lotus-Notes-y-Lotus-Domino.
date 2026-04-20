@@ -10,6 +10,8 @@ router.use(checkRole('admin', 'supervisor'));
 
 // Estadísticas generales
 router.get('/statistics', adminController.getStatistics);
+router.get('/stats/community', adminController.getStatsByCommunity);
+router.get('/access-log', adminController.getAccessLog);
 
 // Gestión de informes
 router.get('/reports', adminController.getAllReports);

@@ -99,14 +99,16 @@
 .nav-menu a {
   display: flex;
   align-items: center;
-  padding: 14px 24px;
-  color: rgba(255, 255, 255, 0.8);
+  gap: 12px;
+  padding: 11px 20px;
+  color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
   transition: var(--transition);
   font-weight: 400;
-  font-size: 15px;
+  font-size: 14px;
   border-left: 3px solid transparent;
   position: relative;
+  border-radius: 0;
 }
 
 .nav-menu a::before {
@@ -122,9 +124,9 @@
 }
 
 .nav-menu a:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
   color: #ffffff;
-  padding-left: 28px;
+  padding-left: 24px;
 }
 
 .nav-menu a:hover::before {

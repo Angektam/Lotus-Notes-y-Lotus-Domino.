@@ -348,3 +348,59 @@ exports.updateUserStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error', error: error.message });
   }
 };
+
+// Estadísticas por comunidad (admin)
+exports.getStatsByCommunity = async (req, res) => {
+  try {
+    const brigadistas = await User.findAll({
+      where: { role: 'brigadista' },
+      attributes: ['id', 'brigadistaProfile'],
+      include: [{ model: Report, as: 'assignedReports', attributes: ['id', 'status', 'totalHours'] }]
+    });
+
+    const communityMap = {};
+    for (const b of brigadistas) {
+      const community = b.brigadistaProfile?.community || 'Sin comunidad';
+      if (!communityMap[community]) {
+        communityMap[community] = { community, brigadistas: 0, totalReports: 0, approved: 0, pending: 0, totalHours: 0 };
+      }
+      const reports = b.assignedReports || [];
+      communityMap[community].brigadistas++;
+      communityMap[community].totalReports += reports.length;
+      communityMap[community].approved += reports.filter(r => r.status === 'APROBADO' || r.status === 'approved').length;
+      communityMap[community].pending += reports.filter(r => ['ENVIADO', 'submitted', 'ASIGNADO', 'EN_ELABORACION'].includes(r.status)).length;
+      communityMap[community].totalHours += reports.reduce((s, r) => s + (r.totalHours || 0), 0);
+    }
+
+    res.json({ success: true, data: Object.values(communityMap).sort((a, b) => b.totalReports - a.totalReports) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error', error: error.message });
+  }
+};
+
+// Auditoría de accesos (admin)
+exports.getAccessLog = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id', 'username', 'fullName', 'role', 'status', 'lastLogin', 'createdAt', 'brigadistaProfile', 'supervisorProfile'],
+      order: [['lastLogin', 'DESC']],
+      limit: 100
+    });
+
+    const log = users
+      .filter(u => u.lastLogin)
+      .map(u => ({
+        id: u.id,
+        username: u.username,
+        fullName: u.fullName,
+        role: u.role,
+        community: u.brigadistaProfile?.community || u.supervisorProfile?.community || '-',
+        lastLogin: u.lastLogin,
+        status: u.status
+      }));
+
+    res.json({ success: true, data: log });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error', error: error.message });
+  }
+};

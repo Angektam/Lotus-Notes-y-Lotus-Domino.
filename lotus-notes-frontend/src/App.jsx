@@ -8,6 +8,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import AdminReports from './pages/AdminReports'
 import AdminStudents from './pages/AdminStudents'
 import AdminUsers from './pages/AdminUsers'
+import AdminAccessLog from './pages/AdminAccessLog'
 import SupervisorDashboard from './pages/SupervisorDashboard'
 import SupervisorBrigadistas from './pages/SupervisorBrigadistas'
 import SupervisorAssignReport from './pages/SupervisorAssignReport'
@@ -103,6 +104,9 @@ function App() {
             } />
             <Route path="admin/users" element={
               <RoleRoute allow={['admin']}><AdminUsers /></RoleRoute>
+            } />
+            <Route path="admin/access-log" element={
+              <RoleRoute allow={['admin']}><AdminAccessLog /></RoleRoute>
             } />
 
             {/* Supervisor */}

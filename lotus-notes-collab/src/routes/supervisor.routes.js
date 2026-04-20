@@ -21,6 +21,7 @@ router.delete('/brigadistas/:id', authenticate, checkRole('supervisor', 'admin')
 
 // Gestión de reportes
 router.post('/reports/assign', authenticate, checkRole('supervisor', 'admin'), supervisorController.assignReport);
+router.post('/reports/assign-bulk', authenticate, checkRole('supervisor', 'admin'), supervisorController.assignReportBulk);
 router.get('/reports/pending', authenticate, checkRole('supervisor', 'admin'), supervisorController.getPendingReports);
 router.get('/reports', authenticate, checkRole('supervisor', 'admin'), supervisorController.getAllReports);
 router.put('/reports/:id/review', authenticate, checkRole('supervisor', 'admin'), supervisorController.reviewReport);

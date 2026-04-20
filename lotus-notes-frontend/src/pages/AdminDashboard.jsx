@@ -21,6 +21,7 @@ function AdminDashboard() {
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
+  const [communityStats, setCommunityStats] = useState([]);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
@@ -44,6 +45,7 @@ function AdminDashboard() {
 
       const response = await api.get('/admin/statistics', { params });
       setStats(response.data.data);
+      api.get('/admin/stats/community').then(r => setCommunityStats(r.data.data || [])).catch(() => {});
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
       if (error.response?.status === 401) {
@@ -262,9 +264,52 @@ function AdminDashboard() {
         </div>
       </div>
 
+      {/* Estadísticas por comunidad */}
+      {communityStats.length > 0 && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card-header"><h2>Estadísticas por Comunidad</h2></div>
+          <div className="reports-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Comunidad</th>
+                  <th>Brigadistas</th>
+                  <th>Reportes</th>
+                  <th>Aprobados</th>
+                  <th>Pendientes</th>
+                  <th>Horas</th>
+                  <th>% Aprobación</th>
+                </tr>
+              </thead>
+              <tbody>
+                {communityStats.map(c => (
+                  <tr key={c.community}>
+                    <td><strong>{c.community}</strong></td>
+                    <td>{c.brigadistas}</td>
+                    <td>{c.totalReports}</td>
+                    <td><span className="badge badge-success">{c.approved}</span></td>
+                    <td><span className="badge badge-warning">{c.pending}</span></td>
+                    <td>{c.totalHours}h</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                          <div style={{ width: `${c.totalReports > 0 ? Math.round(c.approved / c.totalReports * 100) : 0}%`, background: '#22c55e', height: '100%' }} />
+                        </div>
+                        <span style={{ fontSize: 12, color: '#6b7280', minWidth: 32 }}>
+                          {c.totalReports > 0 ? Math.round(c.approved / c.totalReports * 100) : 0}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Informes recientes */}
-      <div className="card">
-        <div className="card-header">
+      <div className="card">        <div className="card-header">
           <h2>Informes Recientes</h2>
           <Link to="/admin/reports" className="btn-link">Ver todos →</Link>
         </div>

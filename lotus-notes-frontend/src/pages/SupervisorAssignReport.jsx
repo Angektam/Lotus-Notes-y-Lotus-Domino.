@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import api from '../api/axios'
 import './AdminReports.css'
 
-const emptyForm = { brigadistaId: '', title: '', description: '', dueDate: '', periodStart: '', periodEnd: '' }
+const emptyForm = { title: '', description: '', dueDate: '', periodStart: '', periodEnd: '' }
 const today = new Date().toISOString().split('T')[0]
 
 function SupervisorAssignReport() {
@@ -13,7 +13,10 @@ function SupervisorAssignReport() {
   const [form, setForm] = useState(emptyForm)
   const [formError, setFormError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
-  const [parsedExtra, setParsedExtra] = useState(null) // datos extra del doc
+  const [parsedExtra, setParsedExtra] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [search, setSearch] = useState('')
+  const [filterCommunity, setFilterCommunity] = useState('')
   const fileRef = useRef()
 
   useEffect(() => { loadBrigadistas() }, [])
@@ -22,45 +25,61 @@ function SupervisorAssignReport() {
     try {
       const res = await api.get('/supervisor/brigadistas')
       setBrigadistas(res.data.data || [])
-    } catch (error) {
+    } catch {
       setFormError('No se pudieron cargar los brigadistas')
     } finally {
       setLoading(false)
     }
   }
 
+  // Comunidades únicas
+  const communities = useMemo(() => {
+    const s = new Set(brigadistas.map(b => b.brigadistaProfile?.community || 'Sin comunidad'))
+    return ['', ...Array.from(s).sort()]
+  }, [brigadistas])
+
+  // Brigadistas filtrados
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return brigadistas.filter(b => {
+      const matchSearch = !q || (b.fullName || '').toLowerCase().includes(q) || (b.username || '').toLowerCase().includes(q)
+      const matchCom = !filterCommunity || (b.brigadistaProfile?.community || 'Sin comunidad') === filterCommunity
+      return matchSearch && matchCom
+    })
+  }, [brigadistas, search, filterCommunity])
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const toggleSelectAll = () => {
+    const allIds = filtered.map(b => b.id)
+    const allSelected = allIds.every(id => selectedIds.includes(id))
+    setSelectedIds(allSelected ? selectedIds.filter(id => !allIds.includes(id)) : [...new Set([...selectedIds, ...allIds])])
+  }
+
   const handleDocUpload = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-
     const allowed = ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'application/pdf']
     if (!allowed.includes(file.type) && !file.name.match(/\.(docx|doc|pdf)$/i)) {
       setFormError('Solo se aceptan archivos DOCX, DOC o PDF')
       fileRef.current.value = ''
       return
     }
-
-    setParsing(true)
-    setFormError('')
+    setParsing(true); setFormError('')
     try {
       const fd = new FormData()
       fd.append('document', file)
-      const res = await api.post('/supervisor/parse-report', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const res = await api.post('/supervisor/parse-report', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       const d = res.data.data
-
-      // Pre-llenar el formulario con los datos extraídos
       setForm(prev => ({
         ...prev,
         title: d.title || prev.title,
         description: d.description || prev.description,
         periodStart: d.periodStart || prev.periodStart,
-        periodEnd: d.periodEnd || prev.periodEnd,
-        // Si el nombre del brigadista coincide con alguno, seleccionarlo
-        brigadistaId: prev.brigadistaId || matchBrigadista(d.nombreBrigadista)
+        periodEnd: d.periodEnd || prev.periodEnd
       }))
-
       setParsedExtra(d)
       setSuccessMsg('Documento procesado. Revisa y completa los campos.')
       setTimeout(() => setSuccessMsg(''), 5000)
@@ -72,22 +91,10 @@ function SupervisorAssignReport() {
     }
   }
 
-  const matchBrigadista = (nombre) => {
-    if (!nombre) return ''
-    const n = nombre.toLowerCase()
-    const found = brigadistas.find(b =>
-      (b.fullName || '').toLowerCase().includes(n) ||
-      n.includes((b.fullName || '').toLowerCase())
-    )
-    return found ? String(found.id) : ''
-  }
-
   const submit = async (e) => {
     e.preventDefault()
-    setFormError('')
-    setSuccessMsg('')
-
-    if (!form.brigadistaId) { setFormError('Selecciona un brigadista'); return }
+    setFormError(''); setSuccessMsg('')
+    if (selectedIds.length === 0) { setFormError('Selecciona al menos un brigadista'); return }
     if (!form.title.trim()) { setFormError('El título es obligatorio'); return }
     if (!form.dueDate) { setFormError('La fecha límite es obligatoria'); return }
     if (form.dueDate < today) { setFormError('La fecha límite no puede ser en el pasado'); return }
@@ -97,23 +104,29 @@ function SupervisorAssignReport() {
 
     setSubmitting(true)
     try {
-      await api.post('/supervisor/reports/assign', { ...form, brigadistaId: Number(form.brigadistaId) })
-      setSuccessMsg('Reporte asignado exitosamente')
+      const res = await api.post('/supervisor/reports/assign-bulk', {
+        brigadistaIds: selectedIds,
+        ...form
+      })
+      setSuccessMsg(res.data.message)
       setForm(emptyForm)
+      setSelectedIds([])
       setParsedExtra(null)
-      setTimeout(() => setSuccessMsg(''), 4000)
+      setTimeout(() => setSuccessMsg(''), 5000)
     } catch (error) {
-      setFormError(error.response?.data?.message || error.response?.data?.error || 'Error al asignar reporte')
+      setFormError(error.response?.data?.message || 'Error al asignar reportes')
     } finally {
       setSubmitting(false)
     }
   }
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every(b => selectedIds.includes(b.id))
+
   return (
     <div className="fade-in">
       <div className="page-header">
         <h1>📌 Asignar reporte</h1>
-        <p className="subtitle">Crea un reporte y asígnalo a un brigadista</p>
+        <p className="subtitle">Asigna el mismo reporte a uno o varios brigadistas</p>
       </div>
 
       {formError && (
@@ -124,106 +137,136 @@ function SupervisorAssignReport() {
       )}
       {successMsg && <div className="success-message" style={{ marginBottom: 16 }}>{successMsg}</div>}
 
-      {/* Zona de carga de documento */}
+      {/* Importar desde documento */}
       <div className="card" style={{ marginBottom: 20, background: '#f8fafc', border: '2px dashed #cbd5e1' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }}>
-            <p style={{ fontWeight: 600, margin: '0 0 4px', fontSize: 15 }}>
-              📄 Importar desde documento
-            </p>
-            <p style={{ margin: 0, color: '#718096', fontSize: 14 }}>
-              Sube un DOCX o PDF con el formato del informe y se pre-llenará el formulario automáticamente.
-            </p>
+            <p style={{ fontWeight: 600, margin: '0 0 4px', fontSize: 15 }}>📄 Importar desde documento</p>
+            <p style={{ margin: 0, color: '#718096', fontSize: 14 }}>Sube un DOCX o PDF para pre-llenar el formulario automáticamente.</p>
           </div>
           <label className={`btn btn-outline ${parsing ? 'disabled' : ''}`} style={{ cursor: parsing ? 'not-allowed' : 'pointer', flexShrink: 0 }}>
             {parsing ? '⏳ Procesando...' : '📂 Subir documento'}
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".docx,.doc,.pdf"
-              onChange={handleDocUpload}
-              disabled={parsing}
-              style={{ display: 'none' }}
-            />
+            <input ref={fileRef} type="file" accept=".docx,.doc,.pdf" onChange={handleDocUpload} disabled={parsing} style={{ display: 'none' }} />
           </label>
         </div>
-
-        {/* Vista previa de datos extraídos */}
         {parsedExtra && (
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
-            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, color: '#374151' }}>
-              ✅ Datos extraídos del documento:
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8, fontSize: 13 }}>
-              {parsedExtra.nombreBrigadista && <div><span style={{ color: '#718096' }}>Brigadista:</span> <strong>{parsedExtra.nombreBrigadista}</strong></div>}
-              {parsedExtra.unidadAcademica && <div><span style={{ color: '#718096' }}>Unidad Académica:</span> <strong>{parsedExtra.unidadAcademica}</strong></div>}
-              {parsedExtra.licenciatura && <div><span style={{ color: '#718096' }}>Licenciatura:</span> <strong>{parsedExtra.licenciatura}</strong></div>}
-              {parsedExtra.numeroCuenta && <div><span style={{ color: '#718096' }}>No. Cuenta:</span> <strong>{parsedExtra.numeroCuenta}</strong></div>}
-              {parsedExtra.unidadReceptora && <div><span style={{ color: '#718096' }}>Unidad Receptora:</span> <strong>{parsedExtra.unidadReceptora}</strong></div>}
-              {parsedExtra.proyecto && <div><span style={{ color: '#718096' }}>Proyecto:</span> <strong>{parsedExtra.proyecto}</strong></div>}
-              {parsedExtra.numInforme && <div><span style={{ color: '#718096' }}>No. Informe:</span> <strong>{parsedExtra.numInforme}</strong></div>}
-              {parsedExtra.horas > 0 && <div><span style={{ color: '#718096' }}>Horas:</span> <strong>{parsedExtra.horas}</strong></div>}
-              {parsedExtra.lugar && <div><span style={{ color: '#718096' }}>Lugar:</span> <strong>{parsedExtra.lugar}</strong></div>}
-            </div>
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #e2e8f0', fontSize: 13, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6 }}>
+            {parsedExtra.proyecto && <div><span style={{ color: '#718096' }}>Proyecto:</span> <strong>{parsedExtra.proyecto}</strong></div>}
+            {parsedExtra.unidadReceptora && <div><span style={{ color: '#718096' }}>Unidad:</span> <strong>{parsedExtra.unidadReceptora}</strong></div>}
+            {parsedExtra.numInforme && <div><span style={{ color: '#718096' }}>No. Informe:</span> <strong>{parsedExtra.numInforme}</strong></div>}
+            {parsedExtra.horas > 0 && <div><span style={{ color: '#718096' }}>Horas:</span> <strong>{parsedExtra.horas}</strong></div>}
           </div>
         )}
       </div>
 
-      {/* Formulario */}
-      <div className="card">
-        <form onSubmit={submit} className="grid grid-2">
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label>Brigadista *</label>
-            <select value={form.brigadistaId} onChange={(e) => setForm({ ...form, brigadistaId: e.target.value })} required>
-              <option value="">Selecciona un brigadista...</option>
-              {brigadistas.map(b => (
-                <option key={b.id} value={b.id}>
-                  {b.fullName || b.username} ({b.username})
-                  {b.brigadistaProfile?.community ? ` — ${b.brigadistaProfile.community}` : ''}
-                  {b.brigadistaProfile?.zone ? ` / ${b.brigadistaProfile.zone}` : ''}
-                </option>
-              ))}
-            </select>
+      <form onSubmit={submit}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+
+          {/* Panel izquierdo — selección de brigadistas */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <h3 style={{ margin: 0, fontSize: 15 }}>Brigadistas</h3>
+                <span style={{ fontSize: 13, color: '#6366f1', fontWeight: 600 }}>
+                  {selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <input type="text" placeholder="Buscar brigadista..." value={search}
+                onChange={e => setSearch(e.target.value)} style={{ marginBottom: 8 }} />
+              {communities.length > 2 && (
+                <select value={filterCommunity} onChange={e => setFilterCommunity(e.target.value)} style={{ marginBottom: 0 }}>
+                  <option value="">Todas las comunidades</option>
+                  {communities.filter(Boolean).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+            </div>
+
+            {/* Seleccionar todos */}
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 10, background: allFilteredSelected ? '#eff6ff' : 'white' }}>
+              <input type="checkbox" id="select-all-brig" checked={allFilteredSelected}
+                onChange={toggleSelectAll} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+              <label htmlFor="select-all-brig" style={{ cursor: 'pointer', fontSize: 14, fontWeight: 500, margin: 0 }}>
+                Seleccionar todos ({filtered.length})
+              </label>
+            </div>
+
+            {/* Lista */}
+            <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+              {loading ? (
+                <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>Cargando...</div>
+              ) : filtered.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>Sin resultados</div>
+              ) : (
+                filtered.map(b => {
+                  const selected = selectedIds.includes(b.id)
+                  return (
+                    <div key={b.id} onClick={() => toggleSelect(b.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f9fafb', background: selected ? '#eff6ff' : 'white', transition: 'background 0.1s' }}>
+                      <input type="checkbox" checked={selected} onChange={() => toggleSelect(b.id)}
+                        onClick={e => e.stopPropagation()} style={{ width: 15, height: 15, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: selected ? 600 : 400, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {b.fullName || b.username}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#9ca3af' }}>
+                          {b.brigadistaProfile?.community || ''}{b.brigadistaProfile?.zone ? ` · ${b.brigadistaProfile.zone}` : ''}
+                        </div>
+                      </div>
+                      {selected && <span style={{ color: '#6366f1', fontSize: 16 }}>✓</span>}
+                    </div>
+                  )
+                })
+              )}
+            </div>
           </div>
 
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label>Título *</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="Ej. Informe de Servicio Social No. 4" required />
-          </div>
+          {/* Panel derecho — datos del reporte */}
+          <div className="card">
+            <h3 style={{ marginBottom: 16, fontSize: 15 }}>Datos del reporte</h3>
+            <div className="review-section">
+              <label>Título *</label>
+              <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+                placeholder="Ej. Informe mensual — Inclusión Social" required />
+            </div>
+            <div className="review-section">
+              <label>Descripción / Instrucciones</label>
+              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                placeholder="Instrucciones, alcance, resultados esperados..." rows={4} />
+            </div>
+            <div className="grid grid-2">
+              <div className="review-section">
+                <label>Inicio del período</label>
+                <input type="date" value={form.periodStart} onChange={e => setForm({ ...form, periodStart: e.target.value })} />
+              </div>
+              <div className="review-section">
+                <label>Fin del período</label>
+                <input type="date" value={form.periodEnd} min={form.periodStart || undefined} onChange={e => setForm({ ...form, periodEnd: e.target.value })} />
+              </div>
+            </div>
+            <div className="review-section">
+              <label>Fecha límite de entrega *</label>
+              <input type="date" value={form.dueDate} min={today} onChange={e => setForm({ ...form, dueDate: e.target.value })} required />
+            </div>
 
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label>Descripción / Instrucciones</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Instrucciones, alcance, resultados esperados..." rows={5} />
-          </div>
-
-          <div>
-            <label>Inicio del período</label>
-            <input type="date" value={form.periodStart} onChange={(e) => setForm({ ...form, periodStart: e.target.value })} />
-          </div>
-          <div>
-            <label>Fin del período</label>
-            <input type="date" value={form.periodEnd} min={form.periodStart || undefined} onChange={(e) => setForm({ ...form, periodEnd: e.target.value })} />
-          </div>
-
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label>Fecha límite de entrega *</label>
-            <input type="date" value={form.dueDate} min={today} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} required />
-          </div>
-
-          <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            {parsedExtra && (
-              <button type="button" className="btn btn-secondary" onClick={() => { setForm(emptyForm); setParsedExtra(null) }}>
-                Limpiar
-              </button>
+            {selectedIds.length > 0 && (
+              <div style={{ background: '#eff6ff', border: '1px solid #c7d2fe', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 14 }}>
+                Se asignará a <strong>{selectedIds.length}</strong> brigadista{selectedIds.length !== 1 ? 's' : ''}
+              </div>
             )}
-            <button type="submit" className="btn btn-primary" disabled={submitting || loading}>
-              {submitting ? 'Asignando...' : 'Asignar reporte'}
-            </button>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              {(selectedIds.length > 0 || parsedExtra) && (
+                <button type="button" className="btn btn-secondary" onClick={() => { setForm(emptyForm); setSelectedIds([]); setParsedExtra(null) }}>
+                  Limpiar
+                </button>
+              )}
+              <button type="submit" className="btn btn-primary" disabled={submitting || loading || selectedIds.length === 0}>
+                {submitting ? 'Asignando...' : `Asignar a ${selectedIds.length || '...'} brigadista${selectedIds.length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   )
 }

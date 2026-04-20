@@ -12,6 +12,9 @@ function SupervisorPendingReports() {
   const [reviewComments, setReviewComments] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [actionMsg, setActionMsg] = useState({ type: '', text: '' })
+  // Structured feedback
+  const [sectionFeedback, setSectionFeedback] = useState({ general: '', objetivos: '', resultados: '', participantes: '', observaciones: '', evidencias: '' })
+  const [showStructured, setShowStructured] = useState(false)
   // IA
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState(null)
@@ -43,6 +46,8 @@ function SupervisorPendingReports() {
     setShowModal(false)
     setSelectedReport(null)
     setReviewComments('')
+    setSectionFeedback({ general: '', objetivos: '', resultados: '', participantes: '', observaciones: '', evidencias: '' })
+    setShowStructured(false)
   }
 
   const approve = async (reportId) => {
@@ -60,13 +65,27 @@ function SupervisorPendingReports() {
   }
 
   const requestFixes = async (reportId) => {
-    if (!reviewComments.trim()) {
+    // Build combined comments from structured feedback or plain textarea
+    let finalComments = reviewComments.trim()
+    if (showStructured) {
+      const parts = []
+      if (sectionFeedback.objetivos.trim()) parts.push(`• Objetivos: ${sectionFeedback.objetivos.trim()}`)
+      if (sectionFeedback.resultados.trim()) parts.push(`• Resultados: ${sectionFeedback.resultados.trim()}`)
+      if (sectionFeedback.participantes.trim()) parts.push(`• Participantes: ${sectionFeedback.participantes.trim()}`)
+      if (sectionFeedback.observaciones.trim()) parts.push(`• Observaciones: ${sectionFeedback.observaciones.trim()}`)
+      if (sectionFeedback.evidencias.trim()) parts.push(`• Evidencias: ${sectionFeedback.evidencias.trim()}`)
+      if (sectionFeedback.general.trim()) parts.push(`• General: ${sectionFeedback.general.trim()}`)
+      if (parts.length > 0) {
+        finalComments = `OBSERVACIONES POR SECCIÓN:\n${parts.join('\n')}`
+      }
+    }
+    if (!finalComments) {
       setActionMsg({ type: 'error', text: 'Agrega comentarios para solicitar correcciones' })
       return
     }
     setActionLoading(true)
     try {
-      await api.put(`/supervisor/reports/${reportId}/review`, { action: 'REJECT', comments: reviewComments, observations: [] })
+      await api.put(`/supervisor/reports/${reportId}/review`, { action: 'REJECT', comments: finalComments, observations: [] })
       setActionMsg({ type: 'success', text: 'Correcciones solicitadas' })
       closeModal()
       loadPending()
@@ -170,36 +189,172 @@ function SupervisorPendingReports() {
                 <h3>{selectedReport.title}</h3>
                 <p><strong>Brigadista:</strong> {selectedReport.brigadista?.fullName || selectedReport.brigadista?.username}</p>
                 <p><strong>Fecha límite:</strong> {new Date(selectedReport.dueDate).toLocaleDateString('es-MX')}</p>
+
+                {/* I. Datos del brigadista */}
+                {(selectedReport.unidadAcademica || selectedReport.licenciatura || selectedReport.numeroCuenta) && (
+                  <>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>I. Datos del Brigadista</h4>
+                    {selectedReport.unidadAcademica && <p><strong>Unidad Académica:</strong> {selectedReport.unidadAcademica}</p>}
+                    {selectedReport.licenciatura && <p><strong>Licenciatura:</strong> {selectedReport.licenciatura}</p>}
+                    {selectedReport.numeroCuenta && <p><strong>Número de Cuenta:</strong> {selectedReport.numeroCuenta}</p>}
+                  </>
+                )}
+
+                {/* II. Datos de la unidad receptora */}
+                {(selectedReport.unidadReceptora || selectedReport.projectName || selectedReport.modalidad) && (
+                  <>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>II. Datos de la Unidad Receptora</h4>
+                    {selectedReport.unidadReceptora && <p><strong>Unidad Receptora:</strong> {selectedReport.unidadReceptora}</p>}
+                    {selectedReport.projectName && <p><strong>Proyecto:</strong> {selectedReport.projectName}</p>}
+                    {selectedReport.modalidad && <p><strong>Modalidad:</strong> {selectedReport.modalidad}</p>}
+                  </>
+                )}
+
+                {/* Período e informe */}
+                {(selectedReport.periodStart || selectedReport.periodEnd || selectedReport.totalHours != null || selectedReport.numInforme) && (
+                  <>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>Período e Informe</h4>
+                    {selectedReport.periodStart && <p><strong>Inicio:</strong> {new Date(selectedReport.periodStart).toLocaleDateString('es-MX')}</p>}
+                    {selectedReport.periodEnd && <p><strong>Fin:</strong> {new Date(selectedReport.periodEnd).toLocaleDateString('es-MX')}</p>}
+                    {selectedReport.numInforme && <p><strong>Número de Informe:</strong> {selectedReport.numInforme}</p>}
+                    {selectedReport.totalHours != null && <p><strong>Horas Reportadas:</strong> {selectedReport.totalHours}</p>}
+                  </>
+                )}
+
+                {/* III. Objetivos */}
+                {Array.isArray(selectedReport.objectives) && selectedReport.objectives.length > 0 && (
+                  <>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>III. Objetivo, Metas y Actividades</h4>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: '#f0f4f8' }}>
+                          <th style={{ border: '1px solid #ddd', padding: '6px 8px', textAlign: 'left' }}>Objetivo</th>
+                          <th style={{ border: '1px solid #ddd', padding: '6px 8px', textAlign: 'left' }}>Metas</th>
+                          <th style={{ border: '1px solid #ddd', padding: '6px 8px', textAlign: 'left' }}>Actividades</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedReport.objectives.map((obj, idx) => (
+                          <tr key={idx}>
+                            <td style={{ border: '1px solid #ddd', padding: '6px 8px' }}>{obj.objective || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '6px 8px' }}>{obj.goals || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '6px 8px' }}>{obj.activities || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                {/* IV. Resultados */}
                 {selectedReport.description && (
                   <>
-                    <h4>Descripción</h4>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>IV. Resultados Obtenidos</h4>
                     <p>{selectedReport.description}</p>
                   </>
                 )}
 
-                <h4>Actividades</h4>
-                {Array.isArray(selectedReport.activities) && selectedReport.activities.length > 0 ? (
-                  selectedReport.activities.map((a, idx) => (
-                    <div key={idx} className="objective-item">
-                      <p><strong>Fecha:</strong> {a.date ? new Date(a.date).toLocaleDateString('es-MX') : '-'}</p>
-                      <p><strong>Descripción:</strong> {a.description || '-'}</p>
-                      {a.location ? <p><strong>Lugar:</strong> {a.location}</p> : null}
-                      {a.findings ? <p><strong>Hallazgos:</strong> {a.findings}</p> : null}
-                    </div>
-                  ))
-                ) : (
-                  <p>Sin actividades registradas</p>
+                {/* V. Participantes */}
+                {Array.isArray(selectedReport.participants) && selectedReport.participants.length > 0 && (
+                  <>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>V. Participantes y/o Beneficiados</h4>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: '#f0f4f8' }}>
+                          <th style={{ border: '1px solid #ddd', padding: '6px 8px', textAlign: 'left' }}>Actividad</th>
+                          <th style={{ border: '1px solid #ddd', padding: '6px 8px', textAlign: 'left' }}>No. Participantes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedReport.participants.map((p, idx) => (
+                          <tr key={idx}>
+                            <td style={{ border: '1px solid #ddd', padding: '6px 8px' }}>{p.activity || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '6px 8px' }}>{p.count || 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                {/* VI. Observaciones */}
+                {selectedReport.observations && (
+                  <>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>VI. Observaciones</h4>
+                    <p>{selectedReport.observations}</p>
+                  </>
+                )}
+
+                {/* VII. Evidencias */}
+                {Array.isArray(selectedReport.evidences) && selectedReport.evidences.length > 0 && (
+                  <>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>VII. Evidencias de Trabajo</h4>
+                    <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
+                      {selectedReport.evidences.map((ev, idx) => (
+                        <li key={idx} style={{ fontSize: 13 }}>{typeof ev === 'string' ? ev : ev.descripcion || '-'}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {/* Actividades (legacy) */}
+                {Array.isArray(selectedReport.activities) && selectedReport.activities.length > 0 && (
+                  <>
+                    <h4 style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 700, color: '#1e3a5f', borderBottom: '1px solid #e5e7eb', paddingBottom: 4 }}>Actividades</h4>
+                    {selectedReport.activities.map((a, idx) => (
+                      <div key={idx} className="objective-item">
+                        <p><strong>Fecha:</strong> {a.date ? new Date(a.date).toLocaleDateString('es-MX') : '-'}</p>
+                        <p><strong>Descripción:</strong> {a.description || '-'}</p>
+                        {a.location ? <p><strong>Lugar:</strong> {a.location}</p> : null}
+                        {a.findings ? <p><strong>Hallazgos:</strong> {a.findings}</p> : null}
+                      </div>
+                    ))}
+                  </>
                 )}
               </div>
 
               <div className="review-section">
-                <label>Comentarios / Observaciones</label>
-                <textarea
-                  value={reviewComments}
-                  onChange={(e) => setReviewComments(e.target.value)}
-                  placeholder="Indica qué debe corregir o confirma aprobación..."
-                  rows="4"
-                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <label style={{ marginBottom: 0 }}>Comentarios / Observaciones</label>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ fontSize: 12, padding: '4px 12px' }}
+                    onClick={() => setShowStructured(s => !s)}
+                  >
+                    {showStructured ? '📝 Comentario simple' : '📋 Feedback por sección'}
+                  </button>
+                </div>
+                {showStructured ? (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {[
+                      { key: 'objetivos', label: 'Objetivos' },
+                      { key: 'resultados', label: 'Resultados' },
+                      { key: 'participantes', label: 'Participantes' },
+                      { key: 'observaciones', label: 'Observaciones' },
+                      { key: 'evidencias', label: 'Evidencias' },
+                      { key: 'general', label: 'General' },
+                    ].map(({ key, label }) => (
+                      <div key={key}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>{label}</label>
+                        <textarea
+                          value={sectionFeedback[key]}
+                          onChange={(e) => setSectionFeedback(prev => ({ ...prev, [key]: e.target.value }))}
+                          placeholder={`Observaciones sobre ${label.toLowerCase()}...`}
+                          rows="2"
+                          style={{ width: '100%', fontSize: 13 }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <textarea
+                    value={reviewComments}
+                    onChange={(e) => setReviewComments(e.target.value)}
+                    placeholder="Indica qué debe corregir o confirma aprobación..."
+                    rows="4"
+                  />
+                )}
               </div>
 
               {/* Panel IA */}

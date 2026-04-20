@@ -26,11 +26,11 @@ function BrigadistaReports() {
   const [createError, setCreateError] = useState('')
   const emptyNew = {
     // Encabezado
-    lugar: 'Los Mochis, Sinaloa', fecha: new Date().toISOString().split('T')[0],
+    lugar: '', fecha: '',
     // Datos del brigadista
     unidadAcademica: '', licenciatura: '', numeroCuenta: '', nombreBrigadista: '',
     // Datos unidad receptora
-    unidadReceptora: '', projectName: '', modalidad: 'Multidisciplinaria',
+    unidadReceptora: '', projectName: '', modalidad: '',
     // Periodo e informe
     periodStart: '', periodEnd: '', dueDate: '', numInforme: '', totalHours: '',
     // Secciones
@@ -39,7 +39,6 @@ function BrigadistaReports() {
     participants: [{ activity: '', count: '' }],
     observations: '',
     evidences: [{ descripcion: '' }],
-    // Título auto
     title: ''
   }
   const [newReport, setNewReport] = useState(emptyNew)
@@ -98,12 +97,120 @@ function BrigadistaReports() {
   }
 
   const printReport = () => {
-    const content = document.getElementById('report-print-content')
-    if (!content) return
+    if (!selectedReport) return
+    const r = selectedReport
+    const brigadistaInfo = r.brigadistaInfo || {}
+    
     const w = window.open('', '_blank')
-    w.document.write('<html><head><title>Reporte</title><style>body{font-family:Arial,sans-serif;padding:20px;} h2,h3,h4{color:#1a1a1a;} p{margin:4px 0;} .section{margin-bottom:16px;border-bottom:1px solid #eee;padding-bottom:12px;} table{width:100%;border-collapse:collapse;} td,th{border:1px solid #ddd;padding:8px;font-size:13px;}</style></head><body>')
-    w.document.write(content.innerHTML)
-    w.document.write('</body></html>')
+    w.document.write(`
+<html>
+<head>
+  <title>Informe Mensual de Servicio Social</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 30px; line-height: 1.6; color: #1a1a1a; }
+    h1 { text-align: center; font-size: 18px; margin-bottom: 8px; text-transform: uppercase; }
+    .header-info { text-align: center; font-size: 14px; margin-bottom: 20px; }
+    h2 { font-size: 15px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid #1a1a1a; padding-bottom: 4px; }
+    p { margin: 4px 0; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    td, th { border: 1px solid #333; padding: 8px; font-size: 12px; text-align: left; }
+    th { background: #f0f0f0; font-weight: bold; }
+    .signature-line { margin-top: 40px; display: flex; justify-content: space-between; font-size: 13px; }
+    .signature-line div { text-align: center; width: 45%; }
+    hr { border: none; border-top: 1px solid #333; margin: 30px 0; }
+    ul { margin: 8px 0; padding-left: 20px; }
+    li { font-size: 13px; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Informe Mensual de Servicio Social</h1>
+  <div class="header-info">
+    <strong>Lugar:</strong> ${r.lugar || '-'} | <strong>Fecha:</strong> ${r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '-'}
+  </div>
+
+  <h2>I. DATOS DEL BRIGADISTA</h2>
+  <p><strong>Unidad Académica:</strong> ${r.unidadAcademica || brigadistaInfo.academicUnit || '-'}</p>
+  <p><strong>Licenciatura:</strong> ${r.licenciatura || brigadistaInfo.career || '-'}</p>
+  <p><strong>Número de Cuenta:</strong> ${r.numeroCuenta || brigadistaInfo.accountNumber || '-'}</p>
+  <p><strong>Nombre del Brigadista:</strong> ${r.nombreBrigadista || r.brigadista?.fullName || brigadistaInfo.studentName || '-'}</p>
+
+  <h2>II. DATOS DE LA UNIDAD RECEPTORA</h2>
+  <p><strong>Nombre de la Unidad Receptora:</strong> ${r.unidadReceptora || brigadistaInfo.dependencyName || '-'}</p>
+  <p><strong>Nombre del Proyecto:</strong> ${r.projectName || '-'}</p>
+  <p><strong>Modalidad:</strong> ${r.modalidad || brigadistaInfo.modalidad || '-'}</p>
+  <p><strong>Período:</strong> ${r.periodStart ? new Date(r.periodStart).toLocaleDateString('es-MX') : '-'} al ${r.periodEnd ? new Date(r.periodEnd).toLocaleDateString('es-MX') : '-'}</p>
+  <p><strong>Número de Informe:</strong> ${r.numInforme || brigadistaInfo.numInforme || '-'}</p>
+  <p><strong>Horas Reportadas:</strong> ${r.totalHours || 0}</p>
+
+  <h2>III. OBJETIVO, METAS Y ACTIVIDADES</h2>
+  ${Array.isArray(r.objectives) && r.objectives.length > 0 ? `
+  <table>
+    <thead>
+      <tr>
+        <th>Objetivo específico</th>
+        <th>Metas</th>
+        <th>Actividades</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${r.objectives.map(obj => `
+        <tr>
+          <td>${obj.objective || '-'}</td>
+          <td>${obj.goals || '-'}</td>
+          <td>${obj.activities || '-'}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  ` : '<p>Sin objetivos registrados</p>'}
+
+  <h2>IV. RESULTADOS OBTENIDOS</h2>
+  <p>${r.description || r.resultados || 'Sin resultados registrados'}</p>
+
+  <h2>V. PARTICIPANTES Y/O BENEFICIADOS</h2>
+  ${Array.isArray(r.participants) && r.participants.length > 0 ? `
+  <table>
+    <thead>
+      <tr>
+        <th>Actividad</th>
+        <th>No. de participantes</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${r.participants.map(p => `
+        <tr>
+          <td>${p.activity || '-'}</td>
+          <td>${p.count || 0}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  ` : '<p>Sin participantes registrados</p>'}
+
+  <h2>VI. OBSERVACIONES</h2>
+  <p>${r.observations || 'Sin observaciones'}</p>
+
+  <h2>VII. EVIDENCIAS DE TRABAJO</h2>
+  ${Array.isArray(r.evidences) && r.evidences.length > 0 ? `
+  <ul>
+    ${r.evidences.map(ev => `<li>${typeof ev === 'string' ? ev : ev.descripcion || '-'}</li>`).join('')}
+  </ul>
+  ` : '<p>Sin evidencias registradas</p>'}
+
+  <hr>
+  <div class="signature-line">
+    <div>
+      _______________________________<br>
+      Firma del Asesor
+    </div>
+    <div>
+      _______________________________<br>
+      Firma del Responsable
+    </div>
+  </div>
+</body>
+</html>
+    `)
     w.document.close()
     w.print()
   }
@@ -395,6 +502,7 @@ function BrigadistaReports() {
                   <div className="review-section">
                     <label>Modalidad</label>
                     <select value={newReport.modalidad} onChange={e => setNewReport({ ...newReport, modalidad: e.target.value })}>
+                      <option value="">Selecciona...</option>
                       <option value="Multidisciplinaria">Multidisciplinaria</option>
                       <option value="Individual">Individual</option>
                       <option value="Comunitaria">Comunitaria</option>
@@ -720,9 +828,7 @@ function BrigadistaReports() {
 
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={closeModal} disabled={actionLoading}>Cerrar</button>
-              {(selectedReport.status === 'APROBADO' || selectedReport.status === 'ENVIADO') && (
-                <button className="btn btn-outline" onClick={printReport}>🖨️ Descargar PDF</button>
-              )}
+              <button className="btn btn-outline" onClick={printReport}>🖨️ Descargar PDF</button>
               <button className="btn btn-primary" onClick={save} disabled={actionLoading || selectedReport.status === 'ENVIADO' || selectedReport.status === 'APROBADO'}>
                 {actionLoading ? 'Guardando...' : 'Guardar'}
               </button>
