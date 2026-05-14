@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd lotus-notes-frontend && npm install && npm run build",
+  "outputDirectory": "lotus-notes-frontend/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
